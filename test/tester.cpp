@@ -1,8 +1,26 @@
 #define BOOST_TEST_MODULE Tester
 
-typedef unsigned int value_type;
 #include <boost/test/included/unit_test.hpp>
 #include <easer/easer.h>
+#include <iostream>
+#include <cstdio>
+
+constexpr char test_file_names[][128] = {"first_test.dat", "second_test.dat", "third_test.dat", "fourth_test.dat", "fifth_test.dat"};
+
+struct Config {
+	Config() {
+		std::cout << "Tester initialized\n";
+	}
+
+	~Config() {
+		for (auto path : test_file_names) {
+			std::remove(path);
+		}
+		std::cout << "Tester shutdown\n";
+	}
+};
+
+BOOST_GLOBAL_FIXTURE(Config);
 
 struct TestRecord {
 	BEGIN();
@@ -16,11 +34,11 @@ BOOST_AUTO_TEST_CASE(first_test) {
 	TestRecord record{2, false, 'y'};
 	TestRecord in_record{};
 	{
-		std::ofstream file("first_test.dat");
+		std::ofstream file(test_file_names[0]);
 		easer::Serializer::serialize(record, file);
 	}
 	{
-		std::ifstream file("first_test.dat");
+		std::ifstream file(test_file_names[0]);
 		easer::Serializer::deserialize(in_record, file);
 	}
 
@@ -39,11 +57,11 @@ BOOST_AUTO_TEST_CASE(second_test) {
 	TestRecordDerivedNoSerializable record{{3, true, 'n'}, 2, false, 'y'};
 	TestRecordDerivedNoSerializable in_record{};
 	{
-		std::ofstream file("second_test.dat");
+		std::ofstream file(test_file_names[1]);
 		easer::Serializer::serialize(record, file);
 	}
 	{
-		std::ifstream file("second_test.dat");
+		std::ifstream file(test_file_names[1]);
 		easer::Serializer::deserialize(in_record, file);
 	}
 
@@ -64,11 +82,11 @@ BOOST_AUTO_TEST_CASE(third_test) {
 	TestRecordDerivedSerializable record{{3, true, 'n'}, 2, false, 'y'};
 	TestRecordDerivedSerializable in_record{};
 	{
-		std::ofstream file("third_test.dat");
+		std::ofstream file(test_file_names[2]);
 		easer::Serializer::serialize(record, file);
 	}
 	{
-		std::ifstream file("third_test.dat");
+		std::ifstream file(test_file_names[2]);
 		easer::Serializer::deserialize(in_record, file);
 	}
 
@@ -92,11 +110,11 @@ BOOST_AUTO_TEST_CASE(fourth_test) {
 	TestRecordDerivedTwiceSerializable record{{{9, true, '/'}, 3, true, 'n'}, 2, false, 'y'};
 	TestRecordDerivedTwiceSerializable in_record{};
 	{
-		std::ofstream file("fourth_test.dat");
+		std::ofstream file(test_file_names[3]);
 		easer::Serializer::serialize(record, file);
 	}
 	{
-		std::ifstream file("fourth_test.dat");
+		std::ifstream file(test_file_names[3]);
 		easer::Serializer::deserialize(in_record, file);
 	}
 
@@ -124,11 +142,11 @@ BOOST_AUTO_TEST_CASE(fifth_test) {
 	TestRecordDerivedTwiceSerializableMember record{{{9, true, '/'}, 3, true, 'n'}, 2, {27, false, 'x'}, false, 'y'};
 	TestRecordDerivedTwiceSerializableMember in_record{};
 	{
-		std::ofstream file("fifth_test.dat");
+		std::ofstream file(test_file_names[4]);
 		easer::Serializer::serialize(record, file);
 	}
 	{
-		std::ifstream file("fifth_test.dat");
+		std::ifstream file(test_file_names[4]);
 		easer::Serializer::deserialize(in_record, file);
 	}
 
