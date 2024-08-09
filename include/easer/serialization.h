@@ -99,7 +99,7 @@ namespace easer {
 			if constexpr(is_serializable<T>()) {
 				std::invoke([&record, &stream]<typename... TArgs>(const std::tuple<TArgs...>*) {
 					static_assert(is_inheritance_valid<T, TArgs...>(), "BEGIN() specifies invalid bases that T does not inherit from");
-					internal_dispatch_serialize<TArgs..., T>(&record, stream);
+					internal_dispatch_serialize<T, TArgs..., T>(record, stream);
 
 				}, static_cast<T::Inheritance::Bases*>(nullptr));
 			}
@@ -117,7 +117,7 @@ namespace easer {
 			if constexpr(is_serializable<T>()) {
 				std::invoke([&record, &stream]<typename... TArgs>(const std::tuple<TArgs...>*) {
 					static_assert(is_inheritance_valid<T, TArgs...>(), "BEGIN() specifies invalid bases that T does not inherit from");
-					internal_dispatch_deserialize<TArgs..., T>(&record, stream);
+					internal_dispatch_deserialize<T, TArgs..., T>(record, stream);
 
 				}, static_cast<T::Inheritance::Bases*>(nullptr));
 			}
@@ -159,45 +159,48 @@ namespace easer {
 		}
 		template<typename TRecord, typename TCurrent, typename... TBases>
 		consteval static bool is_inheritance_valid_recursive() {
-			if constexpr (sizeof...(TBases)) {
-				if constexpr (std::is_base_of_v<TCurrent, TRecord>) {
+			if constexpr (std::is_base_of_v<TCurrent, TRecord>) {
+				if constexpr (sizeof...(TBases)) {
 					return is_inheritance_valid_recursive<TRecord, TBases...>();
 				}
 				else {
-					return false;
+					return true;
 				}
 			}
 			else {
-				return true;
+				return false;
 			}
 		}
 
-		template<typename TCurrent, typename... TBases>
-		inline static void internal_dispatch_serialize(void* record, std::ostream& stream) {
+		template<typename TRecord, typename TCurrent, typename... TBases>
+		inline static void internal_dispatch_serialize(TRecord& record, std::ostream& stream) {
 			if constexpr (is_serializable<TCurrent>()) {
 				std::invoke([&record, &stream]<typename... TArgs>(const std::tuple<TArgs...>*) {
 					static_assert(is_inheritance_valid<TCurrent, TArgs...>(), "BEGIN() specifies invalid bases that T does not inherit from");
 					if constexpr (sizeof...(TArgs)) {
-						internal_dispatch_serialize<TArgs...>(record, stream);
+						internal_dispatch_serialize<TRecord, TArgs...>(record, stream);
 					}
 
 				}, static_cast<TCurrent::Inheritance::Bases*>(nullptr));
 
-				internal_serialize<TCurrent, TCurrent::begin() + 1>(static_cast<TCurrent*>(record), stream);
-			} 
+				internal_serialize<TCurrent, TCurrent::begin() + 1>(*static_cast<TCurrent*>(&record), stream);
+			}
+			else {
+				serialize(*static_cast<TCurrent*>(&record), stream);
+			}
 			if constexpr (sizeof...(TBases)) {
-				internal_dispatch_serialize<TBases...>(record, stream);
+				internal_dispatch_serialize<TRecord, TBases...>(record, stream);
 			}
 		}
 
 		template<typename T, unsigned int UFieldId>
-		inline static void internal_serialize(T* record, std::ostream& stream) {
+		inline static void internal_serialize(T& record, std::ostream& stream) {
 			const Field<UFieldId> field;
 			if constexpr(T::end() == UFieldId) {
 				return;
 			}
 			else if constexpr (T::is_field_valid(field)) {
-				record->serialize(stream, field);
+				record.serialize(stream, field);
 				internal_serialize<T, UFieldId + 1>(record, stream);
 			}
 			else {
@@ -205,32 +208,34 @@ namespace easer {
 			}
 		}
 
-		template<typename TCurrent, typename... TBases>
-		inline static void internal_dispatch_deserialize(void* record, std::istream& stream) {
+		template<typename TRecord, typename TCurrent, typename... TBases>
+		inline static void internal_dispatch_deserialize(TRecord& record, std::istream& stream) {
 			if constexpr (is_serializable<TCurrent>()) {
 				std::invoke([&record, &stream]<typename... TArgs>(const std::tuple<TArgs...>*) {
 					static_assert(is_inheritance_valid<TCurrent, TArgs...>(), "BEGIN() specifies invalid bases that T does not inherit from");
 					if constexpr (sizeof...(TArgs)) {
-						internal_dispatch_deserialize<TArgs...>(record, stream);
+						internal_dispatch_deserialize<TRecord, TArgs...>(record, stream);
 					}
 
 				}, static_cast<TCurrent::Inheritance::Bases*>(nullptr));
-
-				internal_deserialize<TCurrent, TCurrent::begin() + 1>(static_cast<TCurrent*>(record), stream);
-			} 
+				internal_deserialize<TCurrent, TCurrent::begin() + 1>(*static_cast<TCurrent*>(&record), stream);
+			}
+			else {
+				deserialize(*static_cast<TCurrent*>(&record), stream);
+			}
 			if constexpr (sizeof...(TBases)) {
-				internal_dispatch_deserialize<TBases...>(record, stream);
+				internal_dispatch_deserialize<TRecord, TBases...>(record, stream);
 			}
 		}
 
 		template<typename T, unsigned int UFieldId>
-		inline static void internal_deserialize(T* record, std::istream& stream) {
+		inline static void internal_deserialize(T& record, std::istream& stream) {
 			const Field<UFieldId> field;
 			if constexpr(T::end() == UFieldId) {
 				return;
 			}
 			else if constexpr (T::is_field_valid(field)) {
-				record->deserialize(stream, field);
+				record.deserialize(stream, field);
 				internal_deserialize<T, UFieldId + 1>(record, stream);
 			}
 			else {

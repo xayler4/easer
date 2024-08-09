@@ -5,7 +5,7 @@
 #include <iostream>
 #include <cstdio>
 
-constexpr char test_file_names[][128] = {"first_test.dat", "second_test.dat", "third_test.dat", "fourth_test.dat", "fifth_test.dat", "sixth_test.dat", "seventh_test.dat"};
+constexpr char test_file_names[][128] = {"first_test.dat", "second_test.dat", "third_test.dat", "fourth_test.dat", "fifth_test.dat", "sixth_test.dat", "seventh_test.dat", "eight_test.dat", "ninth_test.dat"};
 
 struct Config {
 	Config() {
@@ -189,16 +189,16 @@ BOOST_AUTO_TEST_CASE(sixth_test) {
 	BOOST_TEST(record.y == in_record.y);
 }
 
-struct TestStructVec2 {
+struct TestRecordVec2 {
 	BEGIN();
-	FIELD(Vec2, a);
-	FIELD(Vec2, b);
+	FIELD(Vec2, va);
+	FIELD(Vec2, vb);
 	END();
 };
 
 BOOST_AUTO_TEST_CASE(seventh_test) {
-	TestStructVec2 record{{ 12, 97 }, {48, 7}};
-	TestStructVec2 in_record{};
+	TestRecordVec2 record{{ 12, 97 }, {48, 7}};
+	TestRecordVec2 in_record{};
 	{
 		std::ofstream file(test_file_names[6]);
 		easer::Serializer::serialize(record, file);
@@ -208,8 +208,77 @@ BOOST_AUTO_TEST_CASE(seventh_test) {
 		easer::Serializer::deserialize(in_record, file);
 	}
 
-	BOOST_TEST(record.a.x == in_record.a.x);
-	BOOST_TEST(record.a.y == in_record.a.y);
-	BOOST_TEST(record.b.x == in_record.b.x);
-	BOOST_TEST(record.b.y == in_record.b.y);
+	BOOST_TEST(record.va.x == in_record.va.x);
+	BOOST_TEST(record.va.y == in_record.va.y);
+	BOOST_TEST(record.vb.x == in_record.vb.x);
+	BOOST_TEST(record.vb.y == in_record.vb.y);
+}
+
+struct TestRecordVec2RecordDerived : public TestRecordVec2, public TestRecord{
+	BEGIN(TestRecordVec2, TestRecord);
+	FIELD(int, vc);	
+	FIELD(bool, vd);	
+	FIELD(char, ve);	
+	FIELD(Vec2, vf);	
+	END();
+};
+
+BOOST_AUTO_TEST_CASE(eight_test) {
+	TestRecordVec2RecordDerived record{{{ 12, 97 }, {48, 7}}, {89, true, 'q'}, 11, false, '0', {56, 79}};
+	TestRecordVec2RecordDerived in_record{};
+	{
+		std::ofstream file(test_file_names[7]);
+		easer::Serializer::serialize(record, file);
+	}
+	{
+		std::ifstream file(test_file_names[7]);
+		easer::Serializer::deserialize(in_record, file);
+	}
+
+	BOOST_TEST(record.va.x == in_record.va.x);
+	BOOST_TEST(record.va.y == in_record.va.y);
+	BOOST_TEST(record.vb.x == in_record.vb.x);
+	BOOST_TEST(record.vb.y == in_record.vb.y);
+
+	BOOST_TEST(record.a == in_record.a);
+	BOOST_TEST(record.b == in_record.b);
+	BOOST_TEST(record.c == in_record.c);
+
+	BOOST_TEST(record.vc == in_record.vc);
+	BOOST_TEST(record.vd == in_record.vd);
+	BOOST_TEST(record.ve == in_record.ve);
+
+	BOOST_TEST(record.vf.x == in_record.vf.x);
+	BOOST_TEST(record.vf.y == in_record.vf.y);
+}
+
+struct TestRecordVec2RecordDerivedVec2 : public TestRecordVec2, public Vec2 {
+	BEGIN(TestRecordVec2, Vec2);
+	FIELD(TestRecord, test_record);
+	END();
+};
+
+BOOST_AUTO_TEST_CASE(ninth_test) {
+	TestRecordVec2RecordDerivedVec2 record{{{ 12, 97 }, {48, 7}}, {56, 79}, 11, false, '0'};
+	TestRecordVec2RecordDerivedVec2 in_record{};
+	{
+		std::ofstream file(test_file_names[8]);
+		easer::Serializer::serialize(record, file);
+	}
+	{
+		std::ifstream file(test_file_names[8]);
+		easer::Serializer::deserialize(in_record, file);
+	}
+
+	BOOST_TEST(record.va.x == in_record.va.x);
+	BOOST_TEST(record.va.y == in_record.va.y);
+	BOOST_TEST(record.vb.x == in_record.vb.x);
+	BOOST_TEST(record.vb.y == in_record.vb.y);
+
+	BOOST_TEST(record.x == in_record.x);
+	BOOST_TEST(record.y == in_record.y);
+
+	BOOST_TEST(record.test_record.a == in_record.test_record.a);
+	BOOST_TEST(record.test_record.b == in_record.test_record.b);
+	BOOST_TEST(record.test_record.c == in_record.test_record.c);
 }
