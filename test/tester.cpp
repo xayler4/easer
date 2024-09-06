@@ -285,18 +285,27 @@ consteval std::uint32_t TestStream::get_alignof<char>() {
 }
 
 BOOST_AUTO_TEST_CASE(tenth_test) {
-	TestRecord record{50000001, true, 'n'};
-	TestRecord in_record{};
+	TestRecordVec2RecordDerivedVec2 record{{{ 12, 97 }, {48, 7}}, {56, 79}, 11, false, '0'};
+	TestRecordVec2RecordDerivedVec2 in_record{};
 	{
-		std::uint8_t buffer[64];
-		TestStream stream(buffer, sizeof(buffer));
-		stream << record;
-		stream >> in_record;
+		std::uint8_t buffer[512];
+		easer::WriteStream<TestStream> wstream(buffer, sizeof(buffer));
+		wstream << record;
+		easer::ReadStream<TestStream> rstream(buffer, sizeof(buffer));
+		rstream >> in_record;
 	}
 
-	BOOST_TEST(record.a == in_record.a);
-	BOOST_TEST(record.b == in_record.b);
-	BOOST_TEST(record.c == in_record.c);
+	BOOST_TEST(record.va.x == in_record.va.x);
+	BOOST_TEST(record.va.y == in_record.va.y);
+	BOOST_TEST(record.vb.x == in_record.vb.x);
+	BOOST_TEST(record.vb.y == in_record.vb.y);
+
+	BOOST_TEST(record.x == in_record.x);
+	BOOST_TEST(record.y == in_record.y);
+
+	BOOST_TEST(record.test_record.a == in_record.test_record.a);
+	BOOST_TEST(record.test_record.b == in_record.test_record.b);
+	BOOST_TEST(record.test_record.c == in_record.test_record.c);
 }
 
 struct Config {
