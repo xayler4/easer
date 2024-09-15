@@ -5,21 +5,22 @@
 #include <limits>
 #include <fstream>
 #include <functional>
+#include <type_traits>
 #include <cassert>
 
 #define REGISTER(type, ...) \
 	template<> \
-	class Registry<std::decay<type>> { \
+	class Registry<type> { \
 	public: \
 		static consteval bool is_valid() { \
 			return true; \
 		} \
 	private: \
-		inline static void write(type& v, std::ostream& stream) { \
+		inline static void write(const type& v, std::ostream& stream) { \
 			internal_write(v, stream, FIELD_NAME_VARIADIC_TO_FIELD_ACCESS_VARIADIC(v, __VA_ARGS__)); \
 		} \
 		template<typename TStream> \
-		inline static void write(type& v, ::easer::WriteStream<TStream>& stream) { \
+		inline static void write(const type& v, ::easer::WriteStream<TStream>& stream) { \
 			stream.template advance_write_ptr<type>(); \
 			internal_write(v, stream, FIELD_NAME_VARIADIC_TO_FIELD_ACCESS_VARIADIC(v, __VA_ARGS__)); \
 		} \
@@ -35,14 +36,14 @@
 			return internal_get_sizeof<FIELD_NAME_VARIADIC_TO_FIELD_TYPE_VARIADIC(type, __VA_ARGS__)>(); \
 		} \
 		template<typename TCurrent, typename... TArgs> \
-		inline static void internal_write(type& name, std::ostream& stream, TCurrent& write_ptr, TArgs&... args) { \
+		inline static void internal_write(const type& name, std::ostream& stream, TCurrent& write_ptr, TArgs&... args) { \
 			::easer::Streamer::write<TCurrent>(write_ptr, stream); \
 			if constexpr(sizeof...(TArgs)) { \
 				internal_write(name, stream, args...); \
 			} \
 		} \
 		template<typename TCurrent, typename TStream, typename... TArgs> \
-		inline static void internal_write(type& name, ::easer::WriteStream<TStream>& stream, TCurrent& write_ptr, TArgs&... args) { \
+		inline static void internal_write(const type& name, ::easer::WriteStream<TStream>& stream, TCurrent& write_ptr, TArgs&... args) { \
 			stream.template advance_write_ptr<TCurrent>(); \
 			::easer::Streamer::write<TCurrent>(write_ptr, stream); \
 			if constexpr(sizeof...(TArgs)) { \
@@ -73,7 +74,37 @@
 			} \
 		} \
 		friend class ::easer::Streamer; \
-	};
+	}; \
+
+#define REGISTER_PROC(type, type_name, stream_name, size_func_body, write_func_body, read_func_body) \
+	template<> \
+	class Registry<type> { \
+	public: \
+		static consteval bool is_valid() { \
+			return true; \
+		} \
+	private: \
+		inline static void write(const type& type_name, std::ostream& stream_name) { \
+			write_func_body; \
+		} \
+		template<typename TStream> \
+		inline static void write(const type& type_name, ::easer::WriteStream<TStream>& stream_name) { \
+			stream.template advance_write_ptr<type>(); \
+			write_func_body; \
+		} \
+		inline static void read(type& type_name, std::istream& stream_name) { \
+			read_func_body; \
+		} \
+		template<typename TStream> \
+		inline static void read(type& type_name, ::easer::ReadStream<TStream>& stream_name) { \
+			stream.template advance_read_ptr<type>(); \
+			read_func_body; \
+		} \
+		static consteval std::uint32_t get_sizeof(type& type_name) { \
+			size_func_body; \
+		} \
+		friend class ::easer::Streamer; \
+	}; \
 
 #define BEGIN(...) \
 	struct Inheritance { \
@@ -96,11 +127,11 @@
 		static_assert(::easer::Streamer::has_register<field_type>() || ::is_registered<field_type>() || std::is_trivial_v<field_type>, "T does not declare BEGIN() or END(), it is not globally serializable nor trivial"); \
 		return true; \
 	} \
-	inline void write(std::ostream& stream, const ::easer::Streamer::Field<__COUNTER__ - 1>) { \
+	inline void write(std::ostream& stream, const ::easer::Streamer::Field<__COUNTER__ - 1>) const { \
 		::easer::Streamer::write(field_name, stream); \
 	} \
 	template<typename TStream> \
-	inline void write(::easer::WriteStream<TStream>& stream, const ::easer::Streamer::Field<__COUNTER__ - 2>) { \
+	inline void write(::easer::WriteStream<TStream>& stream, const ::easer::Streamer::Field<__COUNTER__ - 2>) const { \
 		::easer::Streamer::write(field_name, stream); \
 	} \
 	inline void read(std::istream& stream, const ::easer::Streamer::Field<__COUNTER__ - 3>) { \
@@ -121,7 +152,7 @@
 	} \
 	friend class ::easer::Streamer; \
 	template<typename T, typename V> \
-	friend class has_end;
+	friend class has_end; \
 
 template<typename T>
 struct Registry {
@@ -167,7 +198,19 @@ namespace easer {
 		std::uint32_t m_size;
 	};
 
-	template<typename TStream>
+	template<>
+	class Stream<std::ios> {
+	public:
+		template<typename T>
+		inline static std::uint32_t get_alignof() {
+			return 1;
+		}
+
+	protected:
+		Stream() = default;
+	};
+
+	template<typename TStream = std::ios>
 	class WriteStream : public Stream<TStream> {
 	public:
 		WriteStream(std::uint8_t* handle, std::uint32_t size) : 
@@ -179,21 +222,16 @@ namespace easer {
 		}
 
 		template<typename T>
-		inline WriteStream& operator << (T& value);
-
-		template<typename T>
-		inline static std::uint32_t get_alignof() {
-			return alignof(T);
-		}
+		inline WriteStream<TStream>& operator << (const T& value);
 
 		inline const std::uint8_t* get_write_ptr() const {
 			return m_write_ptr;
 		}
 
-	private:
 		template<typename T>
 		inline void advance_write_ptr();
 
+	private:
 		inline void write(const char* data, std::uint32_t size);
 
 	private:
@@ -202,7 +240,7 @@ namespace easer {
 		friend class Streamer;
 	};
 
-	template<typename TStream>
+	template<typename TStream = std::ios>
 	class ReadStream : public Stream<TStream> {
 	public:
 		ReadStream(std::uint8_t* handle, std::uint32_t size) : 
@@ -212,21 +250,16 @@ namespace easer {
 		}
 
 		template<typename T>
-		inline ReadStream& operator >> (T& value);
-
-		template<typename T>
-		inline static std::uint32_t get_alignof() {
-			return alignof(T);
-		}
+		inline ReadStream<TStream>& operator >> (T& value);
 
 		inline const std::uint8_t* get_read_ptr() const {
 			return m_read_ptr;
 		}
 
-	private:
 		template<typename T>
 		inline void advance_read_ptr();
 
+	private:
 		inline void read(char* data, std::uint32_t size);
 
 	private:
@@ -235,6 +268,64 @@ namespace easer {
 		friend class Streamer;
 	};
 
+	template<typename TStream>
+		requires std::is_base_of_v<Stream<std::ios>, TStream> || std::is_same_v<std::ios, TStream>
+	class WriteStream<TStream> : public Stream<TStream> {
+	public:
+		using StreamType = std::conditional_t<std::is_same_v<std::ios, TStream>, Stream<TStream>, TStream>;
+
+		WriteStream(std::ostream& ostream) : 
+			Stream<TStream>(),
+			m_ostream(ostream) 
+		{
+			
+		}
+
+		~WriteStream() {
+		}
+
+		template<typename T>
+		inline WriteStream<TStream>& operator << (const T& value);
+
+		template<typename T>
+		inline void advance_write_ptr();
+
+	private:
+		inline void write(const char* data, std::uint32_t size);
+
+	private:
+		std::ostream& m_ostream;
+
+		friend class Streamer;
+	};
+
+	template<typename TStream>
+		requires std::is_base_of_v<Stream<std::ios>, TStream> || std::is_same_v<std::ios, TStream>
+	class ReadStream<TStream> : public Stream<TStream> {
+	public:
+		using StreamType = std::conditional_t<std::is_same_v<std::ios, TStream>, Stream<TStream>, TStream>;
+
+		ReadStream(std::istream& istream) : 
+			Stream<TStream>(),
+			m_istream(istream) 
+		{
+
+		}
+
+		template<typename T>
+		inline ReadStream<TStream>& operator >> (T& value);
+
+		template<typename T>
+		inline void advance_read_ptr();
+
+	private:
+		inline void read(char* data, std::uint32_t size);
+
+	private:
+		std::istream& m_istream;
+
+		friend class Streamer;
+	};
 
 	class Streamer {
 	public:
@@ -243,7 +334,7 @@ namespace easer {
 
 	public:
 		template<typename T>
-		inline static void write(T& record, std::ostream& stream) {
+		inline static void write(const T& record, std::ostream& stream) {
 			static_assert(has_register<T>() || ::is_registered<T>() || std::is_trivial_v<T>, "T does not declare BEGIN() or END(), it is not globally serializable nor trivial");
 			if constexpr(has_register<T>()) {
 				internal_dispatch_write<T, T>(record, stream);
@@ -257,7 +348,7 @@ namespace easer {
 		}
 
 		template<typename T, typename TStream>
-		inline static void write(T& record, WriteStream<TStream>& stream) {
+		inline static void write(const T& record, WriteStream<TStream>& stream) {
 			static_assert(has_register<T>() || ::is_registered<T>() || std::is_trivial_v<T>, "T does not declare BEGIN() or END(), it is not globally serializable nor trivial");
 			if constexpr(has_register<T>()) {
 				internal_dispatch_write<T, TStream, T>(record, stream);
@@ -361,7 +452,7 @@ namespace easer {
 		}
 
 		template<typename TRecord, typename TCurrent, typename... TBases>
-		inline static void internal_dispatch_write(TRecord& record, std::ostream& stream) {
+		inline static void internal_dispatch_write(const TRecord& record, std::ostream& stream) {
 			if constexpr (has_register<TCurrent>()) {
 				std::invoke([&record, &stream]<typename... TArgs>(const std::tuple<TArgs...>*) {
 					static_assert(is_inheritance_valid<TCurrent, TArgs...>(), "BEGIN() specifies invalid bases that T does not inherit from");
@@ -370,10 +461,10 @@ namespace easer {
 					}
 
 				}, static_cast<TCurrent::Inheritance::Bases*>(nullptr));
-				internal_write<TCurrent, TCurrent::begin() + 1>(*static_cast<TCurrent*>(&record), stream);
+				internal_write<TCurrent, TCurrent::begin() + 1>(*static_cast<const TCurrent*>(&record), stream);
 			}
 			else {
-				write(*static_cast<TCurrent*>(&record), stream);
+				write(*static_cast<const TCurrent*>(&record), stream);
 			}
 			if constexpr (sizeof...(TBases)) {
 				internal_dispatch_write<TRecord, TBases...>(record, stream);
@@ -381,7 +472,7 @@ namespace easer {
 		}
 
 		template<typename TRecord, typename TStream, typename TCurrent, typename... TBases>
-		inline static void internal_dispatch_write(TRecord& record, WriteStream<TStream>& stream) {
+		inline static void internal_dispatch_write(const TRecord& record, WriteStream<TStream>& stream) {
 			if constexpr (has_register<TCurrent>()) {
 				std::invoke([&record, &stream]<typename... TArgs>(const std::tuple<TArgs...>*) {
 					static_assert(is_inheritance_valid<TCurrent, TArgs...>(), "BEGIN() specifies invalid bases that T does not inherit from");
@@ -392,10 +483,10 @@ namespace easer {
 				}, static_cast<TCurrent::Inheritance::Bases*>(nullptr));
 
 				stream.template advance_write_ptr<TCurrent>();
-				internal_write<TCurrent, TStream, TCurrent::begin() + 1>(*static_cast<TCurrent*>(&record), stream);
+				internal_write<TCurrent, TStream, TCurrent::begin() + 1>(*static_cast<const TCurrent*>(&record), stream);
 			}
 			else {
-				write(*static_cast<TCurrent*>(&record), stream);
+				write(*static_cast<const TCurrent*>(&record), stream);
 			}
 			if constexpr (sizeof...(TBases)) {
 				internal_dispatch_write<TRecord, TStream, TBases...>(record, stream);
@@ -403,7 +494,7 @@ namespace easer {
 		}
 
 		template<typename T, unsigned int UFieldId>
-		inline static void internal_write(T& record, std::ostream& stream) {
+		inline static void internal_write(const T& record, std::ostream& stream) {
 			const Field<UFieldId> field;
 			if constexpr(T::end() == UFieldId) {
 				return;
@@ -418,7 +509,7 @@ namespace easer {
 		}
 
 		template<typename T, typename TStream, unsigned int UFieldId>
-		inline static void internal_write(T& record, WriteStream<TStream>& stream) {
+		inline static void internal_write(const T& record, WriteStream<TStream>& stream) {
 			const Field<UFieldId> field;
 			if constexpr(T::end() == UFieldId) {
 				return;
@@ -554,11 +645,26 @@ namespace easer {
 
 	template<typename TStream> 
 	template<typename T>
-	WriteStream<TStream>& WriteStream<TStream>::operator << (T& value) {
+	WriteStream<TStream>& WriteStream<TStream>::operator << (const T& value) {
 		static_assert(Streamer::has_register<T>() || ::is_registered<T>() || std::is_trivial_v<T>, "T does not declare BEGIN() or END(), it is not globally serializable nor trivial");
 		Streamer::write(value, *this);
 
 		return *this;
+	}
+
+	template<typename TStream> 
+	template<typename T>
+	void WriteStream<TStream>::advance_write_ptr() {
+		std::uint32_t mod = reinterpret_cast<std::uintptr_t>(m_write_ptr) % TStream::template get_alignof<T>();
+		m_write_ptr += mod;
+		assert((m_write_ptr - Stream<TStream>::get_handle()) <= Stream<TStream>::get_size());
+	}
+
+	template<typename TStream> 
+	void WriteStream<TStream>::write(const char* data, std::uint32_t size) {
+		assert((m_write_ptr - Stream<TStream>::get_handle() + size) < Stream<TStream>::get_size());
+		std::memcpy(m_write_ptr, data, size);
+		m_write_ptr += size;
 	}
 
 	template<typename TStream> 
@@ -571,33 +677,66 @@ namespace easer {
 	}
 
 	template<typename TStream> 
-	template<typename T>
-	void WriteStream<TStream>::advance_write_ptr() {
-		std::uint32_t mod = reinterpret_cast<std::uintptr_t>(m_write_ptr) % TStream::template get_alignof<T>();
-		m_write_ptr += TStream::template get_alignof<T>() - mod;
-		assert((m_write_ptr - Stream<TStream>::get_handle()) <= Stream<TStream>::get_size());
+	void ReadStream<TStream>::read(char* data, std::uint32_t size) {
+		assert((m_read_ptr - Stream<TStream>::get_handle() + size) < Stream<TStream>::get_size());
+		std::memcpy(data, m_read_ptr, size);
+		m_read_ptr += size;
 	}
 
 	template<typename TStream> 
 	template<typename T>
 	void ReadStream<TStream>::advance_read_ptr() {
 		std::uint32_t mod = reinterpret_cast<std::uintptr_t>(m_read_ptr) % TStream::template get_alignof<T>();
-		m_read_ptr += TStream::template get_alignof<T>() - mod;
+		m_read_ptr += mod;
 		assert((m_read_ptr - Stream<TStream>::get_handle()) <= Stream<TStream>::get_size());
 	}
 
-	template<typename TStream> 
-	inline void WriteStream<TStream>::write(const char* data, std::uint32_t size) {
-		assert((m_write_ptr - Stream<TStream>::get_handle() + size) < Stream<TStream>::get_size());
-		std::memcpy(m_write_ptr, data, size);
-		m_write_ptr += size;
+	template<typename TStream>
+		requires std::is_base_of_v<Stream<std::ios>, TStream> || std::is_same_v<std::ios, TStream>
+	template<typename T>
+	WriteStream<TStream>& WriteStream<TStream>::operator << (const T& value) {
+		static_assert(Streamer::has_register<T>() || ::is_registered<T>() || std::is_trivial_v<T>, "T does not declare BEGIN() or END(), it is not globally serializable nor trivial");
+		Streamer::write(value, *this);
+
+		return *this;
 	}
 
-	template<typename TStream> 
-	inline void ReadStream<TStream>::read(char* data, std::uint32_t size) {
-		assert((m_read_ptr - Stream<TStream>::get_handle() + size) < Stream<TStream>::get_size());
-		std::memcpy(data, m_read_ptr, size);
-		m_read_ptr += size;
+	template<typename TStream>
+		requires std::is_base_of_v<Stream<std::ios>, TStream> || std::is_same_v<std::ios, TStream>
+	template<typename T>
+	void WriteStream<TStream>::advance_write_ptr() {
+		std::uint32_t mod = m_ostream.tellp() % StreamType::template get_alignof<T>();
+		m_ostream.seekp(m_ostream.tellp() + mod);
+	}
+
+	template<typename TStream>
+		requires std::is_base_of_v<Stream<std::ios>, TStream> || std::is_same_v<std::ios, TStream>
+	void WriteStream<TStream>::write(const char* data, std::uint32_t size) {
+		m_ostream.write(data, size);
+	}
+
+	template<typename TStream>
+		requires std::is_base_of_v<Stream<std::ios>, TStream> || std::is_same_v<std::ios, TStream>
+	template<typename T>
+	ReadStream<TStream>& ReadStream<TStream>::operator >> (T& value) {
+		static_assert(Streamer::has_register<T>() || ::is_registered<T>() || std::is_trivial_v<T>, "T does not declare BEGIN() or END(), it is not globally serializable nor trivial");
+		Streamer::read(value, *this);
+
+		return *this;
+	}
+
+	template<typename TStream>
+		requires std::is_base_of_v<Stream<std::ios>, TStream> || std::is_same_v<std::ios, TStream>
+	void ReadStream<TStream>::read(char* data, std::uint32_t size) {
+		m_istream.read(data, size);
+	}
+	
+	template<typename TStream>
+		requires std::is_base_of_v<Stream<std::ios>, TStream> || std::is_same_v<std::ios, TStream>
+	template<typename T>
+	void ReadStream<TStream>::advance_read_ptr() {
+		std::uint32_t mod = m_istream.tellg() % StreamType::template get_alignof<T>();
+		m_istream.seekg(m_istream.tellg() + mod);
 	}
 }
 

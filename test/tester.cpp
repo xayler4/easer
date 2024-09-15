@@ -4,8 +4,9 @@
 #include <easer/easer.h>
 #include <iostream>
 #include <cstdio>
+#include <vector>
 
-constexpr char test_file_names[][128] = {"first_test.dat", "second_test.dat", "third_test.dat", "fourth_test.dat", "fifth_test.dat", "sixth_test.dat", "seventh_test.dat", "eight_test.dat", "ninth_test.dat"};
+constexpr char test_file_names[][128] = {"first_test.dat", "second_test.dat", "third_test.dat", "fourth_test.dat", "fifth_test.dat", "sixth_test.dat", "seventh_test.dat", "eight_test.dat", "ninth_test.dat", "", "eleventh_test.dat"};
 
 struct TestRecord {
 	BEGIN();
@@ -20,11 +21,13 @@ BOOST_AUTO_TEST_CASE(first_test) {
 	TestRecord in_record{};
 	{
 		std::ofstream file(test_file_names[0]);
-		easer::Streamer::write(record, file);
+		easer::WriteStream<> stream(file);
+		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[0]);
-		easer::Streamer::read(in_record, file);
+		easer::ReadStream<> stream(file);
+		stream >> in_record;
 	}
 
 	BOOST_TEST(record.a == in_record.a);
@@ -43,11 +46,13 @@ BOOST_AUTO_TEST_CASE(second_test) {
 	TestRecordDerivedNoSerializable in_record{};
 	{
 		std::ofstream file(test_file_names[1]);
-		easer::Streamer::write(record, file);
+		easer::WriteStream<> stream(file);
+		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[1]);
-		easer::Streamer::read(in_record, file);
+		easer::ReadStream<> stream(file);
+		stream >> in_record;
 	}
 
 	BOOST_TEST(record.a == in_record.a);
@@ -68,11 +73,13 @@ BOOST_AUTO_TEST_CASE(third_test) {
 	TestRecordDerivedSerializable in_record{};
 	{
 		std::ofstream file(test_file_names[2]);
-		easer::Streamer::write(record, file);
+		easer::WriteStream<> stream(file);
+		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[2]);
-		easer::Streamer::read(in_record, file);
+		easer::ReadStream<> stream(file);
+		stream >> in_record;
 	}
 
 	BOOST_TEST(record.a == in_record.a);
@@ -96,11 +103,13 @@ BOOST_AUTO_TEST_CASE(fourth_test) {
 	TestRecordDerivedTwiceSerializable in_record{};
 	{
 		std::ofstream file(test_file_names[3]);
-		easer::Streamer::write(record, file);
+		easer::WriteStream<> stream(file);
+		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[3]);
-		easer::Streamer::read(in_record, file);
+		easer::ReadStream<> stream(file);
+		stream >> in_record;
 	}
 
 	BOOST_TEST(record.a == in_record.a);
@@ -128,11 +137,13 @@ BOOST_AUTO_TEST_CASE(fifth_test) {
 	TestRecordDerivedTwiceSerializableMember in_record{};
 	{
 		std::ofstream file(test_file_names[4]);
-		easer::Streamer::write(record, file);
+		easer::WriteStream<> stream(file);
+		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[4]);
-		easer::Streamer::read(in_record, file);
+		easer::ReadStream<> stream(file);
+		stream >> in_record;
 	}
 
 	BOOST_TEST(record.a == in_record.a);
@@ -163,11 +174,13 @@ BOOST_AUTO_TEST_CASE(sixth_test) {
 	Vec2 in_record{};
 	{
 		std::ofstream file(test_file_names[5]);
-		easer::Streamer::write(record, file);
+		easer::WriteStream<> stream(file);
+		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[5]);
-		easer::Streamer::read(in_record, file);
+		easer::ReadStream<> stream(file);
+		stream >> in_record;
 	}
 
 	BOOST_TEST(record.x == in_record.x);
@@ -186,11 +199,13 @@ BOOST_AUTO_TEST_CASE(seventh_test) {
 	TestRecordVec2 in_record{};
 	{
 		std::ofstream file(test_file_names[6]);
-		easer::Streamer::write(record, file);
+		easer::WriteStream<> stream(file);
+		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[6]);
-		easer::Streamer::read(in_record, file);
+		easer::ReadStream<> stream(file);
+		stream >> in_record;
 	}
 
 	BOOST_TEST(record.va.x == in_record.va.x);
@@ -204,21 +219,21 @@ struct TestRecordVec2RecordDerived : public TestRecordVec2, public TestRecord{
 	FIELD(int, vc);	
 	FIELD(bool, vd);	
 	FIELD(char, ve);	
-	/* FIELD(Vec2, vf); */	
 	END();
 };
 
 BOOST_AUTO_TEST_CASE(eight_test) {
-	/* TestRecordVec2RecordDerived record{{{ 12, 97 }, {48, 7}}, {89, true, 'q'}, 11, false, '0', {56, 79}}; */
 	TestRecordVec2RecordDerived record{{{ 12, 97 }, {48, 7}}, {89, true, 'q'}, 11, false, '0'};
 	TestRecordVec2RecordDerived in_record{};
 	{
 		std::ofstream file(test_file_names[7]);
-		easer::Streamer::write(record, file);
+		easer::WriteStream<> stream(file);
+		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[7]);
-		easer::Streamer::read(in_record, file);
+		easer::ReadStream<> stream(file);
+		stream >> in_record;
 	}
 
 	BOOST_TEST(record.va.x == in_record.va.x);
@@ -233,9 +248,6 @@ BOOST_AUTO_TEST_CASE(eight_test) {
 	BOOST_TEST(record.vc == in_record.vc);
 	BOOST_TEST(record.vd == in_record.vd);
 	BOOST_TEST(record.ve == in_record.ve);
-
-	/* BOOST_TEST(record.vf.x == in_record.vf.x); */
-	/* BOOST_TEST(record.vf.y == in_record.vf.y); */
 }
 
 struct TestRecordVec2RecordDerivedVec2 : public TestRecordVec2, public Vec2 {
@@ -249,11 +261,13 @@ BOOST_AUTO_TEST_CASE(ninth_test) {
 	TestRecordVec2RecordDerivedVec2 in_record{};
 	{
 		std::ofstream file(test_file_names[8]);
-		easer::Streamer::write(record, file);
+		easer::WriteStream<> stream(file);
+		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[8]);
-		easer::Streamer::read(in_record, file);
+		easer::ReadStream<> stream(file);
+		stream >> in_record;
 	}
 
 	BOOST_TEST(record.va.x == in_record.va.x);
@@ -281,7 +295,7 @@ struct TestStream : public easer::Stream<TestStream> {
 
 template<>
 consteval std::uint32_t TestStream::get_alignof<char>() {
-	return 2;
+	return 4;
 }
 
 BOOST_AUTO_TEST_CASE(tenth_test) {
@@ -308,15 +322,55 @@ BOOST_AUTO_TEST_CASE(tenth_test) {
 	BOOST_TEST(record.test_record.c == in_record.test_record.c);
 }
 
+REGISTER_PROC(std::vector<int>, v, stream, 
+		{
+			return v.size();
+		},
+		{
+			stream << v.size();
+			for (auto& data : v) {
+				stream << data;
+			}
+		},
+		{
+			std::size_t size;
+			stream >> size;
+			v.resize(size);
+			for (auto& data : v) {
+				stream >> data;
+			}
+		});
+
+BOOST_AUTO_TEST_CASE(eleventh_test) {
+	std::vector<int> vec = {2, 4, 5, 10, 24};
+	std::vector<int> in_vec;
+	
+	{
+		std::ofstream file(test_file_names[10]);
+		easer::WriteStream<> stream(file);
+		stream << vec;
+	}
+	{
+		std::ifstream file(test_file_names[10]);
+		easer::ReadStream<> stream(file);
+		stream >> in_vec;
+	}
+
+	BOOST_TEST(vec.size() == in_vec.size());
+	for (int i = 0; i < vec.size(); i++) {
+		BOOST_TEST(vec[i] == in_vec[i]);
+	}
+}
+
 struct Config {
 	Config() {
 		std::cout << "Tester initialized\n";
 	}
 
 	~Config() {
-		for (auto fname : test_file_names) {
-			std::remove(fname);
-		}
+		/* for (auto fname : test_file_names) { */
+		/* 	std::remove(fname); */
+		/* } */
 		std::cout << "Tester shutdown\n";
 	}
 };
