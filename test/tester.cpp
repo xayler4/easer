@@ -167,6 +167,7 @@ struct Vec2 {
 	int y;
 };
 
+template<>
 REGISTER(Vec2, x, y)
 
 BOOST_AUTO_TEST_CASE(sixth_test) {
@@ -322,10 +323,8 @@ BOOST_AUTO_TEST_CASE(tenth_test) {
 	BOOST_TEST(record.test_record.c == in_record.test_record.c);
 }
 
-REGISTER_PROC(std::vector<int>, v, stream, 
-		{
-			return v.size();
-		},
+template<typename T>
+REGISTER_PROC(std::vector<T>, v, stream, 
 		{
 			stream << v.size();
 			for (auto& data : v) {
@@ -339,6 +338,9 @@ REGISTER_PROC(std::vector<int>, v, stream,
 			for (auto& data : v) {
 				stream >> data;
 			}
+		},
+		{
+			return v.size();
 		});
 
 BOOST_AUTO_TEST_CASE(eleventh_test) {
@@ -368,9 +370,9 @@ struct Config {
 	}
 
 	~Config() {
-		/* for (auto fname : test_file_names) { */
-		/* 	std::remove(fname); */
-		/* } */
+		for (auto fname : test_file_names) {
+			std::remove(fname);
+		}
 		std::cout << "Tester shutdown\n";
 	}
 };
