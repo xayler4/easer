@@ -1,0 +1,9 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Include the exported targets file
+include("${CMAKE_CURRENT_LIST_DIR}/easer-lib-targets.cmake")
+
+# Check if all required components are present
+check_required_components(easer-lib)
