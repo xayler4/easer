@@ -9,11 +9,11 @@
 constexpr char test_file_names[][128] = {"first_test.dat", "second_test.dat", "third_test.dat", "fourth_test.dat", "fifth_test.dat", "sixth_test.dat", "seventh_test.dat", "eight_test.dat", "ninth_test.dat", "", "eleventh_test.dat"};
 
 struct TestRecord {
-	BEGIN();
-	FIELD(int, a);
-	FIELD(bool, b);
-	FIELD(char, c);
-	END();
+	EASER_BEGIN();
+	EASER_FIELD(int, a, "test-channel");
+	EASER_FIELD(bool, b, "test-channel");
+	EASER_FIELD(char, c);
+	EASER_END();
 };
 
 BOOST_AUTO_TEST_CASE(first_test) {
@@ -61,11 +61,11 @@ BOOST_AUTO_TEST_CASE(second_test) {
 }
 
 struct TestRecordDerivedSerializable : public TestRecord {
-	BEGIN(TestRecord);
-	FIELD(int, d);
-	FIELD(bool, e);
-	FIELD(char, f);
-	END();
+	EASER_BEGIN(TestRecord);
+	EASER_FIELD(int, d);
+	EASER_FIELD(bool, e);
+	EASER_FIELD(char, f);
+	EASER_END();
 };
 
 BOOST_AUTO_TEST_CASE(third_test) {
@@ -91,11 +91,11 @@ BOOST_AUTO_TEST_CASE(third_test) {
 }
 
 struct TestRecordDerivedTwiceSerializable : public TestRecordDerivedSerializable {
-	BEGIN(TestRecordDerivedSerializable);
-	FIELD(int, g);
-	FIELD(bool, h);
-	FIELD(char, i);
-	END();
+	EASER_BEGIN(TestRecordDerivedSerializable);
+	EASER_FIELD(int, g);
+	EASER_FIELD(bool, h);
+	EASER_FIELD(char, i);
+	EASER_END();
 };
 
 BOOST_AUTO_TEST_CASE(fourth_test) {
@@ -124,12 +124,12 @@ BOOST_AUTO_TEST_CASE(fourth_test) {
 }
 
 struct TestRecordDerivedTwiceSerializableMember : public TestRecordDerivedSerializable {
-	BEGIN(TestRecordDerivedSerializable);
-	FIELD(int, g);
-	FIELD(TestRecord, test_record_member);
-	FIELD(bool, h);
-	FIELD(char, i);
-	END();
+	EASER_BEGIN(TestRecordDerivedSerializable);
+	EASER_FIELD(int, g);
+	EASER_FIELD(TestRecord, test_record_member);
+	EASER_FIELD(bool, h);
+	EASER_FIELD(char, i);
+	EASER_END();
 };
 
 BOOST_AUTO_TEST_CASE(fifth_test) {
@@ -167,8 +167,11 @@ struct Vec2 {
 	int y;
 };
 
-template<>
-REGISTER(Vec2, x, y)
+template<EASER_REGISTRY_PARAMS>
+EASER_REGISTER(Vec2, "", x, y);
+
+template<EASER_REGISTRY_PARAMS>
+EASER_REGISTER_NONE(Vec2, "test-channel");
 
 BOOST_AUTO_TEST_CASE(sixth_test) {
 	Vec2 record{12, 97};
@@ -189,10 +192,10 @@ BOOST_AUTO_TEST_CASE(sixth_test) {
 }
 
 struct TestRecordVec2 {
-	BEGIN();
-	FIELD(Vec2, va);
-	FIELD(Vec2, vb);
-	END();
+	EASER_BEGIN();
+	EASER_FIELD(Vec2, va, "test-channel");
+	EASER_FIELD(Vec2, vb);
+	EASER_END();
 };
 
 BOOST_AUTO_TEST_CASE(seventh_test) {
@@ -216,11 +219,11 @@ BOOST_AUTO_TEST_CASE(seventh_test) {
 }
 
 struct TestRecordVec2RecordDerived : public TestRecordVec2, public TestRecord{
-	BEGIN(TestRecordVec2, TestRecord);
-	FIELD(int, vc);	
-	FIELD(bool, vd);	
-	FIELD(char, ve);	
-	END();
+	EASER_BEGIN(TestRecordVec2, TestRecord);
+	EASER_FIELD(int, vc);	
+	EASER_FIELD(bool, vd);	
+	EASER_FIELD(char, ve);	
+	EASER_END();
 };
 
 BOOST_AUTO_TEST_CASE(eight_test) {
@@ -252,13 +255,13 @@ BOOST_AUTO_TEST_CASE(eight_test) {
 }
 
 struct TestRecordVec2RecordDerivedVec2 : public TestRecordVec2, public Vec2 {
-	BEGIN(TestRecordVec2, Vec2);
-	FIELD(TestRecord, test_record);
-	END();
+	EASER_BEGIN(TestRecordVec2, Vec2);
+	EASER_FIELD(TestRecord, test_record, "test-channel");
+	EASER_END();
 };
 
 BOOST_AUTO_TEST_CASE(ninth_test) {
-	TestRecordVec2RecordDerivedVec2 record{{{ 12, 97 }, {48, 7}}, {56, 79}, 11, false, '0'};
+	TestRecordVec2RecordDerivedVec2 record{{{ 12, 97 }, {48, 7}}, {56, 79}, 11, true, '0'};
 	TestRecordVec2RecordDerivedVec2 in_record{};
 	{
 		std::ofstream file(test_file_names[8]);
@@ -292,6 +295,10 @@ struct TestStream : public easer::Stream<TestStream> {
 	static consteval std::uint32_t get_alignof() {
 		return 2;
 	}
+
+	static consteval std::string_view get_channel() {
+		return "test-channel";
+	}
 };
 
 template<>
@@ -300,7 +307,7 @@ consteval std::uint32_t TestStream::get_alignof<char>() {
 }
 
 BOOST_AUTO_TEST_CASE(tenth_test) {
-	TestRecordVec2RecordDerivedVec2 record{{{ 12, 97 }, {48, 7}}, {56, 79}, 11, false, '0'};
+	TestRecordVec2RecordDerivedVec2 record{{{ 12, 97 }, {48, 7}}, {56, 79}, 11, true, '0'};
 	TestRecordVec2RecordDerivedVec2 in_record{};
 	{
 		std::uint8_t buffer[512];
@@ -310,21 +317,21 @@ BOOST_AUTO_TEST_CASE(tenth_test) {
 		rstream >> in_record;
 	}
 
-	BOOST_TEST(record.va.x == in_record.va.x);
-	BOOST_TEST(record.va.y == in_record.va.y);
-	BOOST_TEST(record.vb.x == in_record.vb.x);
-	BOOST_TEST(record.vb.y == in_record.vb.y);
+	BOOST_TEST(record.va.x != in_record.va.x);
+	BOOST_TEST(record.va.y != in_record.va.y);
+	BOOST_TEST(record.vb.x != in_record.vb.x);
+	BOOST_TEST(record.vb.y != in_record.vb.y);
 
-	BOOST_TEST(record.x == in_record.x);
-	BOOST_TEST(record.y == in_record.y);
+	BOOST_TEST(record.x != in_record.x);
+	BOOST_TEST(record.y != in_record.y);
 
 	BOOST_TEST(record.test_record.a == in_record.test_record.a);
 	BOOST_TEST(record.test_record.b == in_record.test_record.b);
-	BOOST_TEST(record.test_record.c == in_record.test_record.c);
+	BOOST_TEST(record.test_record.c != in_record.test_record.c);
 }
 
-template<typename T>
-REGISTER_PROC(std::vector<T>, v, stream, 
+template<typename T, EASER_REGISTRY_PARAMS>
+EASER_REGISTER_PROC(std::vector<T>, "test-channel", v, stream, 
 		{
 			stream << v.size();
 			for (auto& data : v) {
@@ -343,18 +350,28 @@ REGISTER_PROC(std::vector<T>, v, stream,
 			return v.size();
 		});
 
+template<typename T, EASER_REGISTRY_PARAMS>
+EASER_REGISTER_PROC(std::vector<T>, "", v, stream, 
+		{
+		},
+		{
+		},
+		{
+			return v.size();
+		});
+
 BOOST_AUTO_TEST_CASE(eleventh_test) {
 	std::vector<int> vec = {2, 4, 5, 10, 24};
 	std::vector<int> in_vec;
+	std::uint8_t buffer[512];
 	
 	{
-		std::ofstream file(test_file_names[10]);
-		easer::WriteStream<> stream(file);
+
+		easer::WriteStream<TestStream> stream(buffer, sizeof(buffer));
 		stream << vec;
 	}
 	{
-		std::ifstream file(test_file_names[10]);
-		easer::ReadStream<> stream(file);
+		easer::ReadStream<TestStream> stream(buffer, sizeof(buffer));
 		stream >> in_vec;
 	}
 
@@ -363,6 +380,12 @@ BOOST_AUTO_TEST_CASE(eleventh_test) {
 		BOOST_TEST(vec[i] == in_vec[i]);
 	}
 }
+
+struct MyStruct {
+	EASER_BEGIN();
+	EASER_SPEC_FIELD(static, int, i);
+	EASER_END();
+};
 
 struct Config {
 	Config() {
