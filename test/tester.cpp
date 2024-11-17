@@ -5,15 +5,16 @@
 #include <iostream>
 #include <cstdio>
 #include <vector>
+#include <array>
 
 constexpr char test_file_names[][128] = {"first_test.dat", "second_test.dat", "third_test.dat", "fourth_test.dat", "fifth_test.dat", "sixth_test.dat", "seventh_test.dat", "eight_test.dat", "ninth_test.dat", "", "eleventh_test.dat"};
 
 struct TestRecord {
-	EASER_BEGIN();
-	EASER_FIELD(int, a, "test-channel");
-	EASER_FIELD(bool, b, "test-channel");
-	EASER_FIELD(char, c);
-	EASER_END();
+	ESR_BEGIN();
+	ESR_FIELD(int, a, "test-channel");
+	ESR_FIELD(bool, b, "test-channel");
+	ESR_FIELD(char, c);
+	ESR_END();
 };
 
 BOOST_AUTO_TEST_CASE(first_test) {
@@ -21,12 +22,12 @@ BOOST_AUTO_TEST_CASE(first_test) {
 	TestRecord in_record{};
 	{
 		std::ofstream file(test_file_names[0]);
-		easer::WriteStream<> stream(file);
+		esr::WriteStream<> stream(file);
 		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[0]);
-		easer::ReadStream<> stream(file);
+		esr::ReadStream<> stream(file);
 		stream >> in_record;
 	}
 
@@ -46,12 +47,12 @@ BOOST_AUTO_TEST_CASE(second_test) {
 	TestRecordDerivedNoSerializable in_record{};
 	{
 		std::ofstream file(test_file_names[1]);
-		easer::WriteStream<> stream(file);
+		esr::WriteStream<> stream(file);
 		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[1]);
-		easer::ReadStream<> stream(file);
+		esr::ReadStream<> stream(file);
 		stream >> in_record;
 	}
 
@@ -61,11 +62,11 @@ BOOST_AUTO_TEST_CASE(second_test) {
 }
 
 struct TestRecordDerivedSerializable : public TestRecord {
-	EASER_BEGIN(TestRecord);
-	EASER_FIELD(int, d);
-	EASER_FIELD(bool, e);
-	EASER_FIELD(char, f);
-	EASER_END();
+	ESR_BEGIN(TestRecord);
+	ESR_FIELD(int, d);
+	ESR_FIELD(bool, e);
+	ESR_FIELD(char, f);
+	ESR_END();
 };
 
 BOOST_AUTO_TEST_CASE(third_test) {
@@ -73,12 +74,12 @@ BOOST_AUTO_TEST_CASE(third_test) {
 	TestRecordDerivedSerializable in_record{};
 	{
 		std::ofstream file(test_file_names[2]);
-		easer::WriteStream<> stream(file);
+		esr::WriteStream<> stream(file);
 		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[2]);
-		easer::ReadStream<> stream(file);
+		esr::ReadStream<> stream(file);
 		stream >> in_record;
 	}
 
@@ -91,11 +92,11 @@ BOOST_AUTO_TEST_CASE(third_test) {
 }
 
 struct TestRecordDerivedTwiceSerializable : public TestRecordDerivedSerializable {
-	EASER_BEGIN(TestRecordDerivedSerializable);
-	EASER_FIELD(int, g);
-	EASER_FIELD(bool, h);
-	EASER_FIELD(char, i);
-	EASER_END();
+	ESR_BEGIN(TestRecordDerivedSerializable);
+	ESR_FIELD(int, g);
+	ESR_FIELD(bool, h);
+	ESR_FIELD(char, i);
+	ESR_END();
 };
 
 BOOST_AUTO_TEST_CASE(fourth_test) {
@@ -103,12 +104,12 @@ BOOST_AUTO_TEST_CASE(fourth_test) {
 	TestRecordDerivedTwiceSerializable in_record{};
 	{
 		std::ofstream file(test_file_names[3]);
-		easer::WriteStream<> stream(file);
+		esr::WriteStream<> stream(file);
 		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[3]);
-		easer::ReadStream<> stream(file);
+		esr::ReadStream<> stream(file);
 		stream >> in_record;
 	}
 
@@ -124,12 +125,12 @@ BOOST_AUTO_TEST_CASE(fourth_test) {
 }
 
 struct TestRecordDerivedTwiceSerializableMember : public TestRecordDerivedSerializable {
-	EASER_BEGIN(TestRecordDerivedSerializable);
-	EASER_FIELD(int, g);
-	EASER_FIELD(TestRecord, test_record_member);
-	EASER_FIELD(bool, h);
-	EASER_FIELD(char, i);
-	EASER_END();
+	ESR_BEGIN(TestRecordDerivedSerializable);
+	ESR_FIELD(int, g);
+	ESR_FIELD(TestRecord, test_record_member);
+	ESR_FIELD(bool, h);
+	ESR_FIELD(char, i);
+	ESR_END();
 };
 
 BOOST_AUTO_TEST_CASE(fifth_test) {
@@ -137,12 +138,12 @@ BOOST_AUTO_TEST_CASE(fifth_test) {
 	TestRecordDerivedTwiceSerializableMember in_record{};
 	{
 		std::ofstream file(test_file_names[4]);
-		easer::WriteStream<> stream(file);
+		esr::WriteStream<> stream(file);
 		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[4]);
-		easer::ReadStream<> stream(file);
+		esr::ReadStream<> stream(file);
 		stream >> in_record;
 	}
 
@@ -167,23 +168,23 @@ struct Vec2 {
 	int y;
 };
 
-template<EASER_REGISTRY_PARAMS>
-EASER_REGISTER(Vec2, "", x, y);
+template<ESR_REGISTRY_PARAMS>
+ESR_REGISTER(Vec2, "", x, y);
 
-template<EASER_REGISTRY_PARAMS>
-EASER_REGISTER_NONE(Vec2, "test-channel");
+template<ESR_REGISTRY_PARAMS>
+ESR_REGISTER_NONE(Vec2, "test-channel");
 
 BOOST_AUTO_TEST_CASE(sixth_test) {
 	Vec2 record{12, 97};
 	Vec2 in_record{};
 	{
 		std::ofstream file(test_file_names[5]);
-		easer::WriteStream<> stream(file);
+		esr::WriteStream<> stream(file);
 		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[5]);
-		easer::ReadStream<> stream(file);
+		esr::ReadStream<> stream(file);
 		stream >> in_record;
 	}
 
@@ -192,10 +193,10 @@ BOOST_AUTO_TEST_CASE(sixth_test) {
 }
 
 struct TestRecordVec2 {
-	EASER_BEGIN();
-	EASER_FIELD(Vec2, va, "test-channel");
-	EASER_FIELD(Vec2, vb);
-	EASER_END();
+	ESR_BEGIN();
+	ESR_FIELD(Vec2, va, "test-channel");
+	ESR_FIELD(Vec2, vb);
+	ESR_END();
 };
 
 BOOST_AUTO_TEST_CASE(seventh_test) {
@@ -203,12 +204,12 @@ BOOST_AUTO_TEST_CASE(seventh_test) {
 	TestRecordVec2 in_record{};
 	{
 		std::ofstream file(test_file_names[6]);
-		easer::WriteStream<> stream(file);
+		esr::WriteStream<> stream(file);
 		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[6]);
-		easer::ReadStream<> stream(file);
+		esr::ReadStream<> stream(file);
 		stream >> in_record;
 	}
 
@@ -219,11 +220,11 @@ BOOST_AUTO_TEST_CASE(seventh_test) {
 }
 
 struct TestRecordVec2RecordDerived : public TestRecordVec2, public TestRecord{
-	EASER_BEGIN(TestRecordVec2, TestRecord);
-	EASER_FIELD(int, vc);	
-	EASER_FIELD(bool, vd);	
-	EASER_FIELD(char, ve);	
-	EASER_END();
+	ESR_BEGIN(TestRecordVec2, TestRecord);
+	ESR_FIELD(int, vc);	
+	ESR_FIELD(bool, vd);	
+	ESR_FIELD(char, ve);	
+	ESR_END();
 };
 
 BOOST_AUTO_TEST_CASE(eight_test) {
@@ -231,12 +232,12 @@ BOOST_AUTO_TEST_CASE(eight_test) {
 	TestRecordVec2RecordDerived in_record{};
 	{
 		std::ofstream file(test_file_names[7]);
-		easer::WriteStream<> stream(file);
+		esr::WriteStream<> stream(file);
 		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[7]);
-		easer::ReadStream<> stream(file);
+		esr::ReadStream<> stream(file);
 		stream >> in_record;
 	}
 
@@ -255,9 +256,9 @@ BOOST_AUTO_TEST_CASE(eight_test) {
 }
 
 struct TestRecordVec2RecordDerivedVec2 : public TestRecordVec2, public Vec2 {
-	EASER_BEGIN(TestRecordVec2, Vec2);
-	EASER_FIELD(TestRecord, test_record, "test-channel");
-	EASER_END();
+	ESR_BEGIN(TestRecordVec2, Vec2);
+	ESR_FIELD(TestRecord, test_record, "test-channel");
+	ESR_END();
 };
 
 BOOST_AUTO_TEST_CASE(ninth_test) {
@@ -265,12 +266,12 @@ BOOST_AUTO_TEST_CASE(ninth_test) {
 	TestRecordVec2RecordDerivedVec2 in_record{};
 	{
 		std::ofstream file(test_file_names[8]);
-		easer::WriteStream<> stream(file);
+		esr::WriteStream<> stream(file);
 		stream << record;
 	}
 	{
 		std::ifstream file(test_file_names[8]);
-		easer::ReadStream<> stream(file);
+		esr::ReadStream<> stream(file);
 		stream >> in_record;
 	}
 
@@ -287,7 +288,7 @@ BOOST_AUTO_TEST_CASE(ninth_test) {
 	BOOST_TEST(record.test_record.c == in_record.test_record.c);
 }
 
-struct TestStream : public easer::Stream<TestStream> {
+struct TestStream : public esr::Stream<TestStream> {
 	TestStream(std::uint8_t* data, std::uint32_t size) : Stream<TestStream>(data, size) {
 	}
 
@@ -311,9 +312,9 @@ BOOST_AUTO_TEST_CASE(tenth_test) {
 	TestRecordVec2RecordDerivedVec2 in_record{};
 	{
 		std::uint8_t buffer[512];
-		easer::WriteStream<TestStream> wstream(buffer, sizeof(buffer));
+		esr::WriteStream<TestStream> wstream(buffer, sizeof(buffer));
 		wstream << record;
-		easer::ReadStream<TestStream> rstream(buffer, sizeof(buffer));
+		esr::ReadStream<TestStream> rstream(buffer, sizeof(buffer));
 		rstream >> in_record;
 	}
 
@@ -330,8 +331,8 @@ BOOST_AUTO_TEST_CASE(tenth_test) {
 	BOOST_TEST(record.test_record.c != in_record.test_record.c);
 }
 
-template<typename T, EASER_REGISTRY_PARAMS>
-EASER_REGISTER_PROC(std::vector<T>, "test-channel", v, stream, 
+template<typename T, ESR_REGISTRY_PARAMS>
+ESR_REGISTER_PROC(std::vector<T>, "test-channel", v, stream, 
 		{
 			stream << v.size();
 			for (auto& data : v) {
@@ -350,15 +351,23 @@ EASER_REGISTER_PROC(std::vector<T>, "test-channel", v, stream,
 			return v.size();
 		});
 
-template<typename T, EASER_REGISTRY_PARAMS>
-EASER_REGISTER_PROC(std::vector<T>, "", v, stream, 
-		{
-		},
-		{
-		},
-		{
-			return v.size();
-		});
+template<ESR_REGISTRY_PARAMS>
+ESR_REGISTER_PROC(int, "Logger", v, stream, 
+	ESR_PACK(),
+	ESR_PACK(),
+	ESR_PACK({
+		return 0;
+	})
+);
+
+template<typename T, ESR_REGISTRY_PARAMS>
+ESR_REGISTER_PROC(std::vector<T>, "", v, stream, 
+	ESR_PACK(),
+	ESR_PACK(),
+	ESR_PACK({
+		return v.size();
+	})
+);
 
 BOOST_AUTO_TEST_CASE(eleventh_test) {
 	std::vector<int> vec = {2, 4, 5, 10, 24};
@@ -367,11 +376,11 @@ BOOST_AUTO_TEST_CASE(eleventh_test) {
 	
 	{
 
-		easer::WriteStream<TestStream> stream(buffer, sizeof(buffer));
+		esr::WriteStream<TestStream> stream(buffer, sizeof(buffer));
 		stream << vec;
 	}
 	{
-		easer::ReadStream<TestStream> stream(buffer, sizeof(buffer));
+		esr::ReadStream<TestStream> stream(buffer, sizeof(buffer));
 		stream >> in_vec;
 	}
 
@@ -382,9 +391,9 @@ BOOST_AUTO_TEST_CASE(eleventh_test) {
 }
 
 struct MyStruct {
-	EASER_BEGIN();
-	EASER_SPEC_FIELD(static, int, i);
-	EASER_END();
+	ESR_BEGIN();
+	ESR_SPEC_FIELD(static, int, i);
+	ESR_END();
 };
 
 struct Config {
