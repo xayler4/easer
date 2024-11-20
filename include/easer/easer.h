@@ -59,7 +59,7 @@
 
 #define ESR_REGISTRY_PARAMS typename ESR_API(TChannel)
 
-#define ESR_REGISTER(type, channel_name, ...) \
+#define ESR_REGISTER(channel_name, type, ...) \
 		requires (::esr::Manager::is_in_set<ESR_API(TChannel), ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(channel_name)>()) \
 	class ESR_API(Registry)<type, ESR_API(TChannel)> { \
 	public: \
@@ -110,7 +110,7 @@
 		friend class ::esr::Manager; \
 	}; \
 
-#define ESR_REGISTER_NONE(type, channel_name) \
+#define ESR_REGISTER_NONE(channel_name, type) \
 		requires (::esr::Manager::is_in_set<ESR_API(TChannel), ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(channel_name)>()) \
 	class ESR_API(Registry)<type, ESR_API(TChannel)> { \
 	public: \
@@ -126,7 +126,7 @@
 		friend class ::esr::Manager; \
 	}; \
 
-#define ESR_REGISTER_PROC(type, channel_name, type_name, stream_name, write_func_body, read_func_body, get_sizeof_func_body) \
+#define ESR_REGISTER_PROC_WRS(channel_name, type, type_name, stream_name, write_func_body, read_func_body, get_sizeof_func_body) \
 		requires (::esr::Manager::is_in_set<ESR_API(TChannel), ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(channel_name)>()) \
 	class ESR_API(Registry)<type, ESR_API(TChannel)> { \
 	public: \
@@ -147,6 +147,129 @@
 			stream_name.template advance_read_ptr<type>(); \
 			read_func_body \
 		} \
+		static consteval std::uint32_t get_sizeof(type& type_name) { \
+			get_sizeof_func_body \
+		} \
+		friend class ::esr::Manager; \
+	}; \
+
+#define ESR_REGISTER_PROC_WR(channel_name, type, type_name, stream_name, write_func_body, read_func_body) \
+		requires (::esr::Manager::is_in_set<ESR_API(TChannel), ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(channel_name)>()) \
+	class ESR_API(Registry)<type, ESR_API(TChannel)> { \
+	public: \
+		static consteval bool is_valid() { \
+			return true; \
+		} \
+		static consteval bool is_none() { \
+			return false; \
+		} \
+	private: \
+		template<typename ESR_API(TStream)> \
+		inline static void write(const type& type_name, ::esr::WriteStream<ESR_API(TStream)>& stream_name) { \
+			stream_name.template advance_write_ptr<type>(); \
+			write_func_body \
+		} \
+		template<typename ESR_API(TStream)> \
+		inline static void read(type& type_name, ::esr::ReadStream<ESR_API(TStream)>& stream_name) { \
+			stream_name.template advance_read_ptr<type>(); \
+			read_func_body \
+		} \
+		friend class ::esr::Manager; \
+	}; \
+
+#define ESR_REGISTER_PROC_WS(channel_name, type, type_name, stream_name, write_func_body, get_sizeof_func_body) \
+		requires (::esr::Manager::is_in_set<ESR_API(TChannel), ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(channel_name)>()) \
+	class ESR_API(Registry)<type, ESR_API(TChannel)> { \
+	public: \
+		static consteval bool is_valid() { \
+			return true; \
+		} \
+		static consteval bool is_none() { \
+			return false; \
+		} \
+	private: \
+		template<typename ESR_API(TStream)> \
+		inline static void write(const type& type_name, ::esr::WriteStream<ESR_API(TStream)>& stream_name) { \
+			stream_name.template advance_write_ptr<type>(); \
+			write_func_body \
+		} \
+		static consteval std::uint32_t get_sizeof(type& type_name) { \
+			get_sizeof_func_body \
+		} \
+		friend class ::esr::Manager; \
+	}; \
+
+#define ESR_REGISTER_PROC_RS(channel_name, type, type_name, stream_name, read_func_body, get_sizeof_func_body) \
+		requires (::esr::Manager::is_in_set<ESR_API(TChannel), ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(channel_name)>()) \
+	class ESR_API(Registry)<type, ESR_API(TChannel)> { \
+	public: \
+		static consteval bool is_valid() { \
+			return true; \
+		} \
+		static consteval bool is_none() { \
+			return false; \
+		} \
+	private: \
+		template<typename ESR_API(TStream)> \
+		inline static void read(type& type_name, ::esr::ReadStream<ESR_API(TStream)>& stream_name) { \
+			stream_name.template advance_read_ptr<type>(); \
+			read_func_body \
+		} \
+		static consteval std::uint32_t get_sizeof(type& type_name) { \
+			get_sizeof_func_body \
+		} \
+		friend class ::esr::Manager; \
+	}; \
+
+#define ESR_REGISTER_PROC_W(channel_name, type, type_name, stream_name, write_func_body) \
+		requires (::esr::Manager::is_in_set<ESR_API(TChannel), ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(channel_name)>()) \
+	class ESR_API(Registry)<type, ESR_API(TChannel)> { \
+	public: \
+		static consteval bool is_valid() { \
+			return true; \
+		} \
+		static consteval bool is_none() { \
+			return false; \
+		} \
+	private: \
+		template<typename ESR_API(TStream)> \
+		inline static void write(const type& type_name, ::esr::WriteStream<ESR_API(TStream)>& stream_name) { \
+			stream_name.template advance_write_ptr<type>(); \
+			write_func_body \
+		} \
+		friend class ::esr::Manager; \
+	}; \
+
+#define ESR_REGISTER_PROC_R(channel_name, type, type_name, stream_name, read_func_body) \
+		requires (::esr::Manager::is_in_set<ESR_API(TChannel), ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(channel_name)>()) \
+	class ESR_API(Registry)<type, ESR_API(TChannel)> { \
+	public: \
+		static consteval bool is_valid() { \
+			return true; \
+		} \
+		static consteval bool is_none() { \
+			return false; \
+		} \
+	private: \
+		template<typename ESR_API(TStream)> \
+		inline static void read(type& type_name, ::esr::ReadStream<ESR_API(TStream)>& stream_name) { \
+			stream_name.template advance_read_ptr<type>(); \
+			read_func_body \
+		} \
+		friend class ::esr::Manager; \
+	}; \
+
+#define ESR_REGISTER_PROC_S(channel_name, type, type_name, stream_name, get_sizeof_func_body) \
+		requires (::esr::Manager::is_in_set<ESR_API(TChannel), ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(channel_name)>()) \
+	class ESR_API(Registry)<type, ESR_API(TChannel)> { \
+	public: \
+		static consteval bool is_valid() { \
+			return true; \
+		} \
+		static consteval bool is_none() { \
+			return false; \
+		} \
+	private: \
 		static consteval std::uint32_t get_sizeof(type& type_name) { \
 			get_sizeof_func_body \
 		} \
@@ -462,13 +585,13 @@ namespace esr {
 		template<typename T, typename TStream>
 		inline static void write(const T& record, WriteStream<TStream>& stream) {
 			static_assert(has_register<T>() || is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>() || std::is_fundamental_v<T>, "T does not declare ESR_BEGIN() or ESR_END(), it is not globally serializable nor fundamental");
-			if constexpr(has_register<T>()) {
-				internal_dispatch_write<T, TStream, T>(record, stream);
-			}
-			else if constexpr(is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>()) {
+			if constexpr(is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>()) {
 				if constexpr (!::ESR_API(Registry)<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>::is_none()) {
 					::ESR_API(Registry)<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>::write(record, stream);
 				}
+			}
+			else if constexpr(has_register<T>()) {
+				internal_dispatch_write<T, TStream, T>(record, stream);
 			}
 			else {
 				stream.template advance_write_ptr<T>();
@@ -480,13 +603,13 @@ namespace esr {
 		inline static void read(T& record, ReadStream<TStream>& stream) {
 			static_assert(has_register<T>() || is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(ReadStream<TStream>::StreamType::get_channel())>() || std::is_fundamental_v<T>, "T does not declare ESR_BEGIN() or ESR_END(), it is not globally serializable nor fundamental");
 
-			if constexpr(has_register<T>()) {
-				internal_dispatch_read<T, TStream, T>(record, stream);
-			}
-			else if constexpr(is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(ReadStream<TStream>::StreamType::get_channel())>()) {
+			if constexpr(is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(ReadStream<TStream>::StreamType::get_channel())>()) {
 				if constexpr (!::ESR_API(Registry)<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(ReadStream<TStream>::StreamType::get_channel())>::is_none()) {
 					::ESR_API(Registry)<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(ReadStream<TStream>::StreamType::get_channel())>::read(record, stream);
 				 }
+			}
+			else if constexpr(has_register<T>()) {
+				internal_dispatch_read<T, TStream, T>(record, stream);
 			}
 			else {
 				stream.template advance_read_ptr<T>();
@@ -498,11 +621,11 @@ namespace esr {
 		static consteval std::uint32_t get_sizeof() {
 			static_assert(has_register<T>() || is_registered<T>() || std::is_fundamental_v<T>, "T does not declare ESR_BEGIN() or ESR_END(), it is not globally serializable nor fundamental");
 
-			if constexpr (has_register<T>()) {
-				return internal_dispatch_get_sizeof<TStream, T>();
-			}
-			else if constexpr (is_registered<T>()) {
+			if constexpr (is_registered<T>()) {
 				return ::ESR_API(Registry)<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(TStream::get_channel())>::get_sizeof();
+			}
+			else if constexpr (has_register<T>()) {
+				return internal_dispatch_get_sizeof<TStream, T>();
 			}
 			else {
 				return sizeof(T);
@@ -592,7 +715,10 @@ namespace esr {
 
 		template<typename TRecord, typename TStream, typename TCurrent, typename... TBases>
 		inline static void internal_dispatch_write(const TRecord& record, WriteStream<TStream>& stream) {
-			if constexpr (has_register<TCurrent>()) {
+			if constexpr (!has_register<TCurrent>()) {
+				write(*static_cast<const TCurrent*>(&record), stream);
+			}
+			else {
 				std::invoke([&record, &stream]<typename... TArgs>(const std::tuple<TArgs...>*) {
 					static_assert(is_inheritance_valid<TCurrent, TArgs...>(), "ESR_BEGIN() specifies invalid bases that T does not inherit from");
 					if constexpr (sizeof...(TArgs)) {
@@ -603,9 +729,6 @@ namespace esr {
 
 				stream.template advance_write_ptr<TCurrent>();
 				internal_write<TCurrent, TStream, TCurrent::ESR_API(begin)() + 1>(*static_cast<const TCurrent*>(&record), stream);
-			}
-			else {
-				write(*static_cast<const TCurrent*>(&record), stream);
 			}
 			if constexpr (sizeof...(TBases)) {
 				internal_dispatch_write<TRecord, TStream, TBases...>(record, stream);
@@ -630,7 +753,10 @@ namespace esr {
 
 		template<typename TRecord, typename TStream, typename TCurrent, typename... TBases>
 		inline static void internal_dispatch_read(TRecord& record, ReadStream<TStream>& stream) {
-			if constexpr (has_register<TCurrent>()) {
+			if constexpr (!has_register<TCurrent>()) {
+				read(*static_cast<TCurrent*>(&record), stream);
+			}
+			else {
 				std::invoke([&record, &stream]<typename... TArgs>(const std::tuple<TArgs...>*) {
 					static_assert(is_inheritance_valid<TCurrent, TArgs...>(), "ESR_BEGIN() specifies invalid bases that T does not inherit from");
 					if constexpr (sizeof...(TArgs)) {
@@ -641,9 +767,6 @@ namespace esr {
 
 				stream.template advance_read_ptr<TCurrent>();
 				internal_read<TCurrent, TStream, TCurrent::ESR_API(begin)() + 1>(*static_cast<TCurrent*>(&record), stream);
-			}
-			else {
-				read(*static_cast<TCurrent*>(&record), stream);
 			}
 			if constexpr (sizeof...(TBases)) {
 				internal_dispatch_read<TRecord, TStream, TBases...>(record, stream);
@@ -668,7 +791,15 @@ namespace esr {
 
 		template<typename TStream, typename TCurrent, typename... TBases>
 		static consteval std::uint32_t internal_dispatch_get_sizeof() {
-			if constexpr (has_register<TCurrent>()) {
+			if constexpr (!has_register<TCurrent>()) {
+				if constexpr (sizeof...(TBases)) {
+					return get_sizeof<TCurrent>() + internal_dispatch_get_sizeof<TStream, TBases...>();
+				}
+				else {
+					return get_sizeof<TCurrent>();
+				}
+			}
+			else {
 				const std::uint32_t partial_sizeof = std::invoke([]<typename... TArgs>(const std::tuple<TArgs...>*) {
 					static_assert(is_inheritance_valid<TCurrent, TArgs...>(), "ESR_BEGIN() specifies invalid bases that T does not inherit from");
 					if constexpr (sizeof...(TArgs)) {
@@ -687,12 +818,6 @@ namespace esr {
 				else {
 					return return_sizeof;
 				}
-			}
-			else if constexpr (sizeof...(TBases)) {
-				return get_sizeof<TCurrent>() + internal_dispatch_get_sizeof<TStream, TBases...>();
-			}
-			else {
-				return get_sizeof<TCurrent>();
 			}
 		}
 

@@ -169,10 +169,10 @@ struct Vec2 {
 };
 
 template<ESR_REGISTRY_PARAMS>
-ESR_REGISTER(Vec2, "", x, y);
+ESR_REGISTER("", Vec2, x, y);
 
 template<ESR_REGISTRY_PARAMS>
-ESR_REGISTER_NONE(Vec2, "test-channel");
+ESR_REGISTER_NONE("test-channel", Vec2);
 
 BOOST_AUTO_TEST_CASE(sixth_test) {
 	Vec2 record{12, 97};
@@ -332,7 +332,7 @@ BOOST_AUTO_TEST_CASE(tenth_test) {
 }
 
 template<typename T, ESR_REGISTRY_PARAMS>
-ESR_REGISTER_PROC(std::vector<T>, "test-channel", v, stream, 
+ESR_REGISTER_PROC_WRS("test-channel", std::vector<T>, v, stream, 
 		{
 			stream << v.size();
 			for (auto& data : v) {
@@ -351,19 +351,9 @@ ESR_REGISTER_PROC(std::vector<T>, "test-channel", v, stream,
 			return v.size();
 		});
 
-template<ESR_REGISTRY_PARAMS>
-ESR_REGISTER_PROC(int, "Logger", v, stream, 
-	ESR_PACK(),
-	ESR_PACK(),
-	ESR_PACK({
-		return 0;
-	})
-);
 
 template<typename T, ESR_REGISTRY_PARAMS>
-ESR_REGISTER_PROC(std::vector<T>, "", v, stream, 
-	ESR_PACK(),
-	ESR_PACK(),
+ESR_REGISTER_PROC_S("", std::vector<T>, v, stream, 
 	ESR_PACK({
 		return v.size();
 	})
