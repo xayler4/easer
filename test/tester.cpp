@@ -7,7 +7,7 @@
 #include <vector>
 #include <array>
 
-constexpr char test_file_names[][128] = {"first_test.dat", "second_test.dat", "third_test.dat", "fourth_test.dat", "fifth_test.dat", "sixth_test.dat", "seventh_test.dat", "eight_test.dat", "ninth_test.dat", "", "eleventh_test.dat"};
+constexpr char test_file_names[][128] = {"first_test.dat", "second_test.dat", "third_test.dat", "fourth_test.dat", "fifth_test.dat", "sixth_test.dat", "seventh_test.dat", "eight_test.dat", "ninth_test.dat", "", "eleventh_test.dat", "twelth_test.dat"};
 
 struct TestRecord {
 	ESR_BEGIN();
@@ -332,7 +332,7 @@ BOOST_AUTO_TEST_CASE(tenth_test) {
 }
 
 template<typename T, ESR_REGISTRY_PARAMS>
-ESR_REGISTER_PROC_WRS("test-channel", std::vector<T>, v, stream, 
+ESR_REGISTER_PROC_WRS("test-channel", const std::vector<T>, v, stream, 
 		{
 			stream << v.size();
 			for (auto& data : v) {
@@ -348,19 +348,19 @@ ESR_REGISTER_PROC_WRS("test-channel", std::vector<T>, v, stream,
 			}
 		},
 		{
-			return v.size();
+			return sizeof(std::vector<T>);
 		});
 
 
 template<typename T, ESR_REGISTRY_PARAMS>
 ESR_REGISTER_PROC_S("", std::vector<T>, v, stream, 
 	ESR_PACK({
-		return v.size();
+		return sizeof(std::vector<T>);
 	})
 );
 
 BOOST_AUTO_TEST_CASE(eleventh_test) {
-	std::vector<int> vec = {2, 4, 5, 10, 24};
+	const std::vector<int> vec = {2, 4, 5, 10, 24};
 	std::vector<int> in_vec;
 	std::uint8_t buffer[512];
 	
@@ -385,6 +385,28 @@ struct MyStruct {
 	ESR_SPEC_FIELD(static, int, i);
 	ESR_END();
 };
+
+BOOST_AUTO_TEST_CASE(twelth_test) {
+	TestRecord arr[11] = {{8, true, 'j'}};
+	TestRecord in_arr[11] = {};
+	
+	{
+		std::ofstream file(test_file_names[11]);
+		esr::WriteStream<> stream(file);
+		stream << arr;
+	}
+	{
+		std::ifstream file(test_file_names[11]);
+		esr::ReadStream<> stream(file);
+		stream >> in_arr;
+	}
+
+	for (int i = 0; i < 11; i++) {
+		BOOST_TEST(arr[i].a == in_arr[i].a);
+		BOOST_TEST(arr[i].b == in_arr[i].b);
+		BOOST_TEST(arr[i].c == in_arr[i].c);
+	}
+}
 
 struct Config {
 	Config() {
