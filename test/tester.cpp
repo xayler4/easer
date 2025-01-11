@@ -332,7 +332,7 @@ BOOST_AUTO_TEST_CASE(tenth_test) {
 }
 
 template<typename T, ESR_REGISTRY_PARAMS>
-ESR_REGISTER_PROC_WRS("test-channel", const std::vector<T>, v, stream, 
+ESR_REGISTER_PROC_WRS("test-channel", std::vector<T>, v, stream, 
 		{
 			stream << v.size();
 			for (auto& data : v) {
@@ -365,7 +365,6 @@ BOOST_AUTO_TEST_CASE(eleventh_test) {
 	std::uint8_t buffer[512];
 	
 	{
-
 		esr::WriteStream<TestStream> stream(buffer, sizeof(buffer));
 		stream << vec;
 	}
