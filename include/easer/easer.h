@@ -415,9 +415,6 @@ namespace esr {
 			m_write_ptr(handle) {
 		}
 
-		~WriteStream() {
-		}
-
 		template<typename T>
 		inline WriteStream<TStream>& operator << (const T& value);
 
@@ -448,11 +445,12 @@ namespace esr {
 			
 		}
 
-		~WriteStream() {
-		}
-
 		template<typename T>
 		inline WriteStream<std::ios>& operator << (const T& value);
+
+		inline bool is_eof() const{
+			return m_ostream.eof();
+		}
 
 		template<typename T>
 		inline void advance_write_ptr();
@@ -477,11 +475,12 @@ namespace esr {
 			
 		}
 
-		~WriteStream() {
-		}
-
 		template<typename T>
 		inline WriteStream<TStream>& operator << (const T& value);
+
+		inline bool is_eof() const{
+			return m_ostream.eof();
+		}
 
 		template<typename T>
 		inline void advance_write_ptr();
@@ -538,6 +537,10 @@ namespace esr {
 		template<typename T>
 		inline ReadStream<std::ios>& operator >> (T& value);
 
+		inline bool is_eof() const{
+			return m_istream.eof();
+		}
+
 		template<typename T>
 		inline void advance_read_ptr();
 
@@ -563,6 +566,10 @@ namespace esr {
 
 		template<typename T>
 		inline ReadStream<TStream>& operator >> (T& value);
+
+		inline bool is_eof() const{
+			return m_istream.eof();
+		}
 
 		template<typename T>
 		inline void advance_read_ptr();
