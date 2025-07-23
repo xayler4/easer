@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <boost/preprocessor.hpp>
 
 #define ESR_EXPAND_MEMBER(instance, member) instance.member
@@ -81,7 +82,7 @@
 			internal_read(v, stream, ESR_FIELD_NAME_VARIADIC_TO_FIELD_ACCESS_VARIADIC(v, __VA_ARGS__)); \
 		} \
 		template<typename TStream> \
-		static consteval std::uint32_t get_sizeof() { \
+		static consteval std::size_t get_sizeof() { \
 			return internal_get_sizeof<ESR_FIELD_NAME_VARIADIC_TO_FIELD_TYPE_VARIADIC(type, __VA_ARGS__)>(); \
 		} \
 		template<typename TCurrent, typename TStream, typename... TArgs> \
@@ -100,7 +101,7 @@
 			} \
 		} \
 		template<typename TCurrent, typename... TArgs> \
-		static consteval std::uint32_t internal_get_sizeof() { \
+		static consteval std::size_t internal_get_sizeof() { \
 			if constexpr(sizeof...(TArgs)) { \
 				return sizeof(TCurrent) + internal_get_sizeof<TArgs...>(); \
 			} \
@@ -121,7 +122,7 @@
 		static consteval bool is_none() { \
 			return true; \
 		} \
-		static consteval std::uint32_t get_sizeof() { \
+		static consteval std::size_t get_sizeof() { \
 			return 0; \
 		} \
 		friend class ::esr::Manager; \
@@ -149,7 +150,7 @@
 			read_func_body \
 		} \
 		template<typename ESR_API(TStream)> \
-		static consteval std::uint32_t get_sizeof() { \
+		static consteval std::size_t get_sizeof() { \
 			get_sizeof_func_body \
 		} \
 		friend class ::esr::Manager; \
@@ -196,7 +197,7 @@
 			write_func_body \
 		} \
 		template<typename ESR_API(TStream)> \
-		static consteval std::uint32_t get_sizeof() { \
+		static consteval std::size_t get_sizeof() { \
 			get_sizeof_func_body \
 		} \
 		friend class ::esr::Manager; \
@@ -219,7 +220,7 @@
 			read_func_body \
 		} \
 		template<typename ESR_API(TStream)> \
-		static consteval std::uint32_t get_sizeof() { \
+		static consteval std::size_t get_sizeof() { \
 			get_sizeof_func_body \
 		} \
 		friend class ::esr::Manager; \
@@ -275,7 +276,7 @@
 		} \
 	private: \
 		template<typename ESR_API(TStream)> \
-		static consteval std::uint32_t get_sizeof() { \
+		static consteval std::size_t get_sizeof() { \
 			get_sizeof_func_body \
 		} \
 		friend class ::esr::Manager; \
@@ -311,7 +312,7 @@
 	inline void ESR_API(read)(::esr::ReadStream<TStream>& stream, const ::esr::Manager::Field<__COUNTER__ - 2>) { \
 		::esr::Manager::read(field_name, stream); \
 	} \
-	static consteval std::uint32_t ESR_API(get_sizeof)(const ::esr::Manager::Field<__COUNTER__ - 3>) { \
+	static consteval std::size_t ESR_API(get_sizeof)(const ::esr::Manager::Field<__COUNTER__ - 3>) { \
 		return ::esr::Manager::get_sizeof<field_type>(); \
 	} \
 	field_type field_name
@@ -330,7 +331,7 @@
 	inline void ESR_API(read)(::esr::ReadStream<TStream>& stream, const ::esr::Manager::Field<__COUNTER__ - 2>) { \
 		::esr::Manager::read(field_name, stream); \
 	} \
-	static consteval std::uint32_t ESR_API(get_sizeof)(const ::esr::Manager::Field<__COUNTER__ - 3>) { \
+	static consteval std::size_t ESR_API(get_sizeof)(const ::esr::Manager::Field<__COUNTER__ - 3>) { \
 		return ::esr::Manager::get_sizeof<field_type>(); \
 	} \
 	declaration_specifier field_type field_name
@@ -352,12 +353,18 @@ struct ESR_API(Registry) {
 
 namespace esr {
 	class Manager;
+
+	struct WriteStreamData {
+		std::size_t size;
+		std::optional<std::uint8_t*> data;
+		std::optional<std::uint8_t*> write_ptr;
+	};
  
 	template<typename TStream>
 	class Stream {
 	public:
 		template<typename T>
-		static consteval std::uint32_t get_alignof() {
+		static consteval std::size_t get_alignof() {
 			return 1;
 		}
 
@@ -365,37 +372,106 @@ namespace esr {
 			return std::string_view{""};
 		}
 
-		inline const std::uint8_t* get_handle() const {
-			return m_handle;
+		static consteval bool should_trigger_write_too_large() {
+			return false;
 		}
 
-		inline std::uint32_t get_size() const {
+		static consteval std::optional<std::size_t> get_post_write_stride() {
+			return {};
+		}
+
+		static consteval std::optional<std::size_t> get_post_read_stride() {
+			return {};
+		}
+
+		inline void on_post_write(std::size_t written_size) {
+			assert(false);
+		}
+
+		inline WriteStreamData on_write_too_large(std::size_t required_size_delta) {
+			assert(false);
+
+			return {};
+		}
+
+		inline void set_data(std::uint8_t* data) {
+			m_data = data;
+		}
+
+		inline void set_size(std::size_t size) {
+			m_size = size;
+		}
+
+		inline void set_write_offset_since_post_write(std::size_t write_offset_since_post_write) {
+			m_write_offset_since_post_write = write_offset_since_post_write;
+		}
+
+		inline void set_read_offset_since_post_read(std::size_t read_offset_since_post_read) {
+			m_read_offset_since_post_read = read_offset_since_post_read;
+		}
+
+		inline const std::uint8_t* get_data() const {
+			return m_data;
+		}
+
+		inline std::uint8_t* get_data() {
+			return m_data;
+		}
+
+		inline std::size_t get_size() const {
 			return m_size;
 		}
 
+		inline std::size_t get_read_offset_since_post_read() const {
+			return m_read_offset_since_post_read;
+		}
+
+		inline std::size_t get_write_offset_since_post_write() const {
+			return m_write_offset_since_post_write;
+		}
+
 	protected:
-		Stream(std::uint8_t* handle, std::uint32_t size) : 	
-			m_handle(handle), 
-			m_size(size) {
+		Stream(std::uint8_t* data, std::size_t size) : 	
+			m_data(data), 
+			m_size(size),
+			m_read_offset_since_post_read(0),
+			m_write_offset_since_post_write(0)
+		{
 
 			static_assert(std::is_base_of_v<Stream<TStream>, TStream>);
 		}
 
 	private:
-		std::uint8_t* m_handle;
-		std::uint32_t m_size;
+		std::uint8_t* m_data;
+		std::size_t m_size;
+		std::size_t m_write_offset_since_post_write;
+		std::size_t m_read_offset_since_post_read;
+
+		friend class esr::Manager;
 	};
 
 	template<>
 	class Stream<std::ios> {
 	public:
 		template<typename T>
-		static consteval std::uint32_t get_alignof() {
+		static consteval std::size_t get_alignof() {
 			return 1;
 		}
 
 		static consteval std::string_view get_channel() {
 			return std::string_view{""};
+		}
+
+		static consteval bool should_trigger_write_too_large() {
+			return false;
+		}
+
+		static consteval std::optional<std::size_t> get_post_write_stride() {
+			return {};
+		}
+
+		static consteval std::optional<std::size_t> get_post_read_stride() {
+			return {};
 		}
 
 	protected:
@@ -406,29 +482,95 @@ namespace esr {
 	concept StreamDerivedFromStandard = (std::is_base_of_v<Stream<std::ios>, TStream> && !std::is_same_v<std::ios, TStream>);
 
 	template<typename TStream = std::ios>
-	class WriteStream : public Stream<TStream> {
+	class WriteStream {
 	public:
 		using StreamType = TStream;
 
-		WriteStream(std::uint8_t* handle, std::uint32_t size) : 
-			Stream<TStream>(handle, size), 
-			m_write_ptr(handle) {
+		WriteStream(StreamType& stream) : 
+			m_stream(stream),
+			m_write_idx(0) {
+
+		}
+
+		WriteStream(StreamType& stream, std::uint8_t* write_ptr) : 
+			m_stream(stream) {
+
+			set_write_ptr(write_ptr);
+		}
+
+		WriteStream(StreamType& stream, std::size_t write_idx) : 
+			m_stream(stream),
+			m_write_idx(write_idx) {
 		}
 
 		template<typename T>
 		inline WriteStream<TStream>& operator << (const T& value);
 
-		inline const std::uint8_t* get_write_ptr() const {
-			return m_write_ptr;
-		}
-
 		template<typename T>
 		inline void advance_write_ptr();
 
-		inline void write(const std::uint8_t* data, std::uint32_t size);
+		inline void write(const std::uint8_t* data, std::size_t size);
+		
+		inline void on_post_write(std::size_t written_size) {
+			m_stream.on_post_write(written_size);
+		}
+
+		inline WriteStreamData on_write_too_large(std::size_t required_size_delta) {
+
+			return m_stream.on_write_too_large(required_size_delta);
+		}
+
+		inline const std::uint8_t* get_data() const {
+			return m_stream.get_data();
+		}
+
+		inline std::size_t get_size() const {
+			return m_stream.get_size();
+		}
+
+		inline std::size_t get_write_offset_since_post_write() const {
+			return m_stream.get_write_offset_since_post_write();
+		}
+
+		inline std::uint8_t* get_write_ptr() {
+			return m_stream.get_data() + m_write_idx;
+		}
+
+		inline const std::uint8_t* get_write_ptr() const {
+			return m_stream.get_data() + m_write_idx;
+		}
+
+		inline std::size_t get_write_idx() const {
+			return m_write_idx;
+		}
+
+		inline void set_write_idx(std::size_t write_idx) {
+			assert(write_idx < m_stream.get_size());
+
+			m_write_idx = write_idx;
+		}
+
+		inline void set_write_ptr(std::uint8_t* write_ptr) {
+			assert(write_ptr >= m_stream.get_data());
+
+			m_write_idx = write_ptr - m_stream.get_data();
+		}
+
+		inline void set_data(std::uint8_t* data) {
+			m_stream.set_data(data);
+		}
+
+		inline void set_size(std::size_t size) {
+			m_stream.set_size(size);
+		}
+
+		inline void set_write_offset_since_post_write(std::size_t write_offset_since_post_write) {
+			m_stream.set_write_offset_since_post_write(write_offset_since_post_write);
+		}
 
 	private:
-		std::uint8_t* m_write_ptr;
+		StreamType& m_stream;
+		std::size_t m_write_idx;
 
 		friend class Manager;
 	};
@@ -455,7 +597,7 @@ namespace esr {
 		template<typename T>
 		inline void advance_write_ptr();
 
-		inline void write(const std::uint8_t* data, std::uint32_t size);
+		inline void write(const std::uint8_t* data, std::size_t size);
 
 	private:
 		std::ostream& m_ostream;
@@ -485,7 +627,7 @@ namespace esr {
 		template<typename T>
 		inline void advance_write_ptr();
 
-		inline void write(const std::uint8_t* data, std::uint32_t size);
+		inline void write(const std::uint8_t* data, std::size_t size);
 
 	private:
 		std::ostream& m_ostream;
@@ -494,30 +636,85 @@ namespace esr {
 	};
 
 	template<typename TStream = std::ios>
-	class ReadStream : public Stream<TStream> {
+	class ReadStream {
 	public:
 		using StreamType = TStream;
 
-		ReadStream(std::uint8_t* handle, std::uint32_t size) : 
-			Stream<TStream>(handle, size),
-			m_read_ptr(handle) {
+		ReadStream(StreamType& stream) : 
+			m_stream(stream),
+			m_read_idx(0) {
 
+		}
+
+		ReadStream(TStream& stream, std::uint8_t* read_ptr) : 
+			m_stream(stream) {
+
+			set_read_ptr(read_ptr);
 		}
 
 		template<typename T>
 		inline ReadStream<TStream>& operator >> (T& value);
 
-		inline const std::uint8_t* get_read_ptr() const {
-			return m_read_ptr;
-		}
-
 		template<typename T>
 		inline void advance_read_ptr();
 
-		inline void read(std::uint8_t* data, std::uint32_t size);
+		inline void read(std::uint8_t* data, std::size_t size);
+
+		inline void on_post_read(std::size_t read_size) {
+			m_stream.on_post_read(read_size);
+		}
+
+		inline const std::uint8_t* get_data() const {
+			return m_stream.get_data();
+		}
+
+		inline std::size_t get_size() const {
+			return m_stream.get_size();
+		}
+
+		inline std::size_t get_read_offset_since_post_read() const {
+			return m_stream.get_read_offset_since_post_read();
+		}
+
+		inline std::uint8_t* get_read_ptr() {
+			return m_stream.get_data() + m_read_idx;
+		}
+
+		inline const std::uint8_t* get_read_ptr() const {
+			return m_stream.get_data() + m_read_idx;
+		}
+
+		inline std::size_t get_read_idx() const {
+			return m_read_idx;
+		}
+
+		inline void set_read_ptr(std::uint8_t* read_ptr) {
+			assert(read_ptr >= m_stream.get_data());
+
+			m_read_idx = read_ptr - m_stream.get_data();
+		}
+
+		inline void set_read_idx(std::size_t read_idx) {
+			assert(read_idx < m_stream.get_size());
+
+			m_read_idx = read_idx;
+		}
+
+		inline void set_data(std::uint8_t* data) {
+			m_stream.set_data(data);
+		}
+
+		inline void set_size(std::size_t size) {
+			m_stream.set_size(size);
+		}
+
+		inline void set_read_offset_since_post_read(std::size_t read_offset_since_post_read) {
+			m_stream.set_read_offset_since_post_read(read_offset_since_post_read);
+		}
 
 	private:
-		std::uint8_t* m_read_ptr;
+		StreamType& m_stream;
+		std::size_t m_read_idx;
 
 		friend class Manager;
 	};
@@ -544,7 +741,7 @@ namespace esr {
 		template<typename T>
 		inline void advance_read_ptr();
 
-		inline void read(std::uint8_t* data, std::uint32_t size);
+		inline void read(std::uint8_t* data, std::size_t size);
 
 	private:
 		std::istream& m_istream;
@@ -574,7 +771,7 @@ namespace esr {
 		template<typename T>
 		inline void advance_read_ptr();
 
-		inline void read(std::uint8_t* data, std::uint32_t size);
+		inline void read(std::uint8_t* data, std::size_t size);
 
 	private:
 		std::istream& m_istream;
@@ -601,7 +798,17 @@ namespace esr {
 			}
 			else if constexpr(std::is_array_v<T>) {
 				if constexpr (!is_registered<std::remove_cvref_t<std::remove_extent_t<T>>, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>() && std::is_fundamental_v<std::remove_extent_t<T>> && WriteStream<TStream>::StreamType::template get_alignof<std::remove_extent_t<T>>() == 1) {
-					stream.write((const std::uint8_t*)&record, sizeof(record));
+					std::uint8_t* previous_write_ptr = stream.get_write_ptr();
+					std::size_t record_size = sizeof(record);
+
+					if constexpr (WriteStream<TStream>::StreamType::should_trigger_write_too_large() || WriteStream<TStream>::StreamType::get_post_write_stride().has_value()) {
+						previous_write_ptr = stream.get_write_ptr();
+					}
+					
+					handle_write_too_large<TStream>(stream, previous_write_ptr, record_size);
+					previous_write_ptr = stream.get_write_ptr();
+					stream.write((std::uint8_t*)&record, record_size);
+					handle_post_write<TStream>(stream, previous_write_ptr, record_size);
 				}
 				else {
 					for (std::size_t i = 0; i < std::extent_v<T>; i++) {
@@ -610,8 +817,18 @@ namespace esr {
 				}
 			}
 			else if constexpr(is_iterable<T>()) {
-				if constexpr (std::contiguous_iterator<decltype(record.begin())> && !is_registered<std::remove_cvref_t<decltype(record.begin())>, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>() && std::is_fundamental_v<T> && WriteStream<TStream>::StreamType::template get_alignof<T>() == 1) {
-					stream.write((const std::uint8_t*)&record.begin(), sizeof(std::remove_cvref_t<decltype(record.begin())>) * (record.end() - record.begin()));
+				if constexpr (std::contiguous_iterator<decltype(record.begin())> && !is_registered<std::remove_cvref_t<decltype(record.begin())>, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>() && std::is_fundamental_v<typename T::value_type> && WriteStream<TStream>::StreamType::template get_alignof<T>() == 1) {
+					std::uint8_t* previous_write_ptr = nullptr;
+					std::size_t record_size = sizeof(typename T::value_type) * (record.end() - record.begin());
+
+					if constexpr (WriteStream<TStream>::StreamType::should_trigger_write_too_large() || WriteStream<TStream>::StreamType::get_post_write_stride().has_value()) {
+						previous_write_ptr = stream.get_write_ptr();
+					}
+
+					handle_write_too_large<TStream>(stream, previous_write_ptr, record_size);
+					previous_write_ptr = stream.get_write_ptr();
+					stream.write((std::uint8_t*)&(*record.begin()), record_size);
+					handle_post_write<TStream>(stream, previous_write_ptr, record_size);
 				}
 				else {
 					for (auto& v : record) {
@@ -620,15 +837,26 @@ namespace esr {
 				}
 			}
 			else {
+				std::uint8_t* previous_write_ptr = nullptr;
+				std::size_t record_size = sizeof(record);
+
+				if constexpr (WriteStream<TStream>::StreamType::should_trigger_write_too_large() || WriteStream<TStream>::StreamType::get_post_write_stride().has_value()) {
+					previous_write_ptr = stream.get_write_ptr();
+				}
+
 				stream.template advance_write_ptr<T>();
-				stream.write((const std::uint8_t*)&record, sizeof(record));
+				handle_write_too_large<TStream>(stream, previous_write_ptr, record_size);
+				if constexpr (WriteStream<TStream>::StreamType::should_trigger_write_too_large() || WriteStream<TStream>::StreamType::get_post_write_stride().has_value()) {
+					previous_write_ptr = stream.get_write_ptr();
+				}
+				stream.write((std::uint8_t*)&record, record_size);
+				handle_post_write<TStream>(stream, previous_write_ptr, record_size);
 			}
 		}
 
 		template<typename T, typename TStream>
 		inline static void read(T& record, ReadStream<TStream>& stream) {
 			static_assert(has_register<T>() || is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(ReadStream<TStream>::StreamType::get_channel())>() || std::is_array_v<T> || ::esr::Manager::is_iterable<T>() || std::is_fundamental_v<T>, "T is not serializable");
-
 			if constexpr(is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(ReadStream<TStream>::StreamType::get_channel())>()) {
 				if constexpr (!::ESR_API(Registry)<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(ReadStream<TStream>::StreamType::get_channel())>::is_none()) {
 					::ESR_API(Registry)<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(ReadStream<TStream>::StreamType::get_channel())>::read(record, stream);
@@ -638,8 +866,16 @@ namespace esr {
 				internal_dispatch_read<T, TStream, T>(record, stream);
 			}
 			else if constexpr(std::is_array_v<T>) {
-				if constexpr (!is_registered<std::remove_cvref_t<std::remove_extent_t<T>>, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>() && std::is_fundamental_v<std::remove_extent_t<T>> && ReadStream<TStream>::StreamType::template get_alignof<std::remove_extent_t<T>>() == 1) {
-					stream.read((std::uint8_t*)&record, sizeof(record));
+				if constexpr (!is_registered<std::remove_cvref_t<std::remove_extent_t<T>>, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(ReadStream<TStream>::StreamType::get_channel())>() && std::is_fundamental_v<std::remove_extent_t<T>> && ReadStream<TStream>::StreamType::template get_alignof<std::remove_extent_t<T>>() == 1) {
+					std::uint8_t* previous_read_ptr = nullptr;
+					std::size_t record_size = sizeof(record);
+
+					if constexpr (ReadStream<TStream>::StreamType::get_post_read_stride().has_value()) {
+						previous_read_ptr = stream.get_read_ptr();
+					}
+
+					stream.read((std::uint8_t*)&record, record_size);
+					handle_post_read<TStream>(stream, previous_read_ptr, record_size);
 				}
 				else {
 					for (std::size_t i = 0; i < std::extent_v<T>; i++) {
@@ -648,8 +884,15 @@ namespace esr {
 				}
 			}
 			else if constexpr(is_iterable<T>()) {
-				if constexpr (std::contiguous_iterator<decltype(record.begin())> && !is_registered<std::remove_cvref_t<decltype(record.begin())>, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>() && std::is_fundamental_v<T> && ReadStream<TStream>::StreamType::template get_alignof<T>() == 1) {
-					stream.read((std::uint8_t*)&record.begin(), sizeof(std::remove_cvref_t<decltype(record.begin())>) * (record.end() - record.begin()));
+				if constexpr (std::contiguous_iterator<decltype(record.begin())> && !is_registered<std::remove_cvref_t<decltype(record.begin())>, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(ReadStream<TStream>::StreamType::get_channel())>() && std::is_fundamental_v<typename T::value_type> && ReadStream<TStream>::StreamType::template get_alignof<T>() == 1) {
+					std::uint8_t* previous_read_ptr = nullptr;
+					std::size_t record_size = sizeof(typename T::value_type) * (record.end() - record.begin());
+					if constexpr (ReadStream<TStream>::StreamType::get_post_read_stride().has_value()) {
+						previous_read_ptr = stream.get_read_ptr();
+					}
+
+					stream.read((std::uint8_t*)&(*record.begin()), record_size);
+					handle_post_read<TStream>(stream, previous_read_ptr, record_size);
 				}
 				else {
 					for (auto& v : record) {
@@ -658,13 +901,21 @@ namespace esr {
 				}
 			}
 			else {
+				std::uint8_t* previous_read_ptr = nullptr;
+				std::size_t record_size = sizeof(record);
+
+				if constexpr (ReadStream<TStream>::StreamType::get_post_read_stride().has_value()) {
+					previous_read_ptr = stream.get_read_ptr();
+				}
+
 				stream.template advance_read_ptr<T>();
-				stream.read((std::uint8_t*)&record, sizeof(record));
+				stream.read((std::uint8_t*)&record, record_size);
+				handle_post_read<TStream>(stream, previous_read_ptr, record_size);
 			}
 		}
 
 		template<typename T, typename TStream = Stream<std::ios>>
-		static consteval std::uint32_t get_sizeof() {
+		static consteval std::size_t get_sizeof() {
 			static_assert(has_register<T>() || is_registered<T>() || std::is_array_v<T> || ::esr::Manager::is_iterable<T>() || std::is_fundamental_v<T>, "T is not serializable");
 
 			if constexpr (is_registered<T>()) {
@@ -754,6 +1005,56 @@ namespace esr {
 		struct has_end_iterator<T, std::void_t<decltype(std::declval<T>().end())>> : std::true_type{};
 
 	private:
+
+		template<typename TStream>
+		static void handle_write_too_large(WriteStream<TStream>& stream, std::uint8_t* previous_write_ptr, std::size_t record_size) {
+			if constexpr (WriteStream<TStream>::StreamType::should_trigger_write_too_large()) {
+				if (stream.get_size() < (stream.get_write_ptr() - stream.get_data() + record_size)) {
+					std::size_t delta = stream.get_write_ptr() - previous_write_ptr + record_size;
+					WriteStreamData result = stream.on_write_too_large(delta);
+					stream.set_size(result.size);
+					if (result.data.has_value()) {
+						stream.set_data(*result.data);
+					}
+					if (result.write_ptr.has_value()) {
+						stream.set_write_ptr(*result.write_ptr);
+					}
+				}
+			}
+		}
+
+		template<typename TStream>
+		static void handle_post_write(WriteStream<TStream>& stream, std::uint8_t* previous_write_ptr, std::size_t record_size) {
+			if constexpr (WriteStream<TStream>::StreamType::get_post_write_stride().has_value()) {
+				std::size_t post_write_stride = *WriteStream<TStream>::StreamType::get_post_write_stride();
+				std::size_t write_offset_since_post_write_delta = stream.get_write_ptr() - previous_write_ptr;
+				std::size_t write_offset_since_post_write = stream.get_write_offset_since_post_write() + write_offset_since_post_write_delta;
+
+				stream.set_write_offset_since_post_write(post_write_stride + write_offset_since_post_write);
+				if (write_offset_since_post_write >= post_write_stride) {
+					stream.on_post_write(write_offset_since_post_write);
+					stream.set_write_offset_since_post_write(0);
+					std::cout << "Buffer: " << (void*)stream.get_data() << " Write ptr: " << (void*)stream.get_write_ptr() << " Write Idx: " << stream.get_write_idx() << "\n\n";
+				}
+
+			}
+		}
+
+		template<typename TStream>
+		static void handle_post_read(ReadStream<TStream>& stream, std::uint8_t* previous_read_ptr, std::size_t record_size) {
+			if constexpr (ReadStream<TStream>::StreamType::get_post_read_stride().has_value()) {
+				std::size_t post_read_stride = *ReadStream<TStream>::StreamType::get_post_read_stride();
+				std::size_t read_offset_since_post_read_delta = stream.get_read_ptr() - previous_read_ptr;
+				std::size_t read_offset_since_post_read = stream.get_read_offset_since_post_read() + read_offset_since_post_read_delta;
+
+				stream.set_read_offset_since_post_read(post_read_stride + read_offset_since_post_read);
+				if (read_offset_since_post_read >= post_read_stride) {
+					stream.on_post_read(read_offset_since_post_read);
+					stream.set_read_offset_since_post_read(0);
+				}
+			}
+		}
+
 		template<typename TRecord, typename... TBases>
 		consteval static bool is_inheritance_valid() {
 			if constexpr (sizeof...(TBases)) {
@@ -856,7 +1157,7 @@ namespace esr {
 		}
 
 		template<typename TStream, typename TCurrent, typename... TBases>
-		static consteval std::uint32_t internal_dispatch_get_sizeof() {
+		static consteval std::size_t internal_dispatch_get_sizeof() {
 			if constexpr (!has_register<TCurrent>()) {
 				if constexpr (sizeof...(TBases)) {
 					return get_sizeof<TCurrent>() + internal_dispatch_get_sizeof<TStream, TBases...>();
@@ -866,7 +1167,7 @@ namespace esr {
 				}
 			}
 			else {
-				const std::uint32_t partial_sizeof = std::invoke([]<typename... TArgs>(const std::tuple<TArgs...>*) {
+				const std::size_t partial_sizeof = std::invoke([]<typename... TArgs>(const std::tuple<TArgs...>*) {
 					static_assert(is_inheritance_valid<TCurrent, TArgs...>(), "ESR_BEGIN() specifies invalid bases that T does not inherit from");
 					if constexpr (sizeof...(TArgs)) {
 						return internal_dispatch_get_sizeof<TStream, TArgs...>();
@@ -876,7 +1177,7 @@ namespace esr {
 					}
 				}, static_cast<TCurrent::ESR_API(Inheritance)::Bases*>(nullptr));
 
-				const std::uint32_t return_sizeof = partial_sizeof + internal_get_sizeof<TStream, TCurrent, TCurrent::ESR_API(begin)() + 1>();
+				const std::size_t return_sizeof = partial_sizeof + internal_get_sizeof<TStream, TCurrent, TCurrent::ESR_API(begin)() + 1>();
 
 				if constexpr (sizeof... (TBases)) {
 					return return_sizeof + internal_dispatch_get_sizeof<TStream, TBases...>();
@@ -887,8 +1188,8 @@ namespace esr {
 			}
 		}
 
-		template<typename TStream, typename T, std::uint32_t UFieldId>
-		static consteval std::uint32_t internal_get_sizeof() {
+		template<typename TStream, typename T, std::size_t UFieldId>
+		static consteval std::size_t internal_get_sizeof() {
 			const Field<UFieldId> field;
 			if constexpr(T::ESR_API(end()) == UFieldId) {
 				return 0;
@@ -916,17 +1217,17 @@ namespace esr {
 	template<typename T>
 	void WriteStream<TStream>::advance_write_ptr() {
 		if constexpr (StreamType::template get_alignof<T>() > 1) {
-			std::uint32_t mod = reinterpret_cast<std::uintptr_t>(m_write_ptr) % TStream::template get_alignof<T>();
-			m_write_ptr += mod;
-			assert((m_write_ptr - Stream<TStream>::get_handle()) <= Stream<TStream>::get_size());
+			std::size_t mod = reinterpret_cast<std::uintptr_t>(get_write_ptr()) % TStream::template get_alignof<T>();
+			m_write_idx += mod;
+			assert(m_write_idx < m_stream.get_size());
 		}
 	}
 
 	template<typename TStream> 
-	void WriteStream<TStream>::write(const std::uint8_t* data, std::uint32_t size) {
-		assert((m_write_ptr - Stream<TStream>::get_handle() + size) < Stream<TStream>::get_size());
-		std::memcpy(m_write_ptr, data, size);
-		m_write_ptr += size;
+	void WriteStream<TStream>::write(const std::uint8_t* data, std::size_t size) {
+		assert(m_write_idx + size < m_stream.get_size());
+		std::memcpy(get_write_ptr(), data, size);
+		m_write_idx += size;
 	}
 
 	template<typename T>
@@ -940,12 +1241,12 @@ namespace esr {
 	template<typename T>
 	void WriteStream<std::ios>::advance_write_ptr() {
 		if constexpr (StreamType::template get_alignof<T>() > 1) {
-			std::uint32_t mod = static_cast<std::uint32_t>(m_ostream.tellp()) % StreamType::template get_alignof<T>();
-			m_ostream.seekp(static_cast<std::uint32_t>(m_ostream.tellp()) + mod);
+			std::size_t mod = static_cast<std::size_t>(m_ostream.tellp()) % StreamType::template get_alignof<T>();
+			m_ostream.seekp(static_cast<std::size_t>(m_ostream.tellp()) + mod);
 		}
 	}
 
-	void WriteStream<std::ios>::write(const std::uint8_t* data, std::uint32_t size) {
+	void WriteStream<std::ios>::write(const std::uint8_t* data, std::size_t size) {
 		m_ostream.write(reinterpret_cast<const char*>(data), size);
 	}
 
@@ -962,13 +1263,13 @@ namespace esr {
 	template<typename T>
 	void WriteStream<TStream>::advance_write_ptr() {
 		if constexpr (StreamType::template get_alignof<T>() > 1) {
-			std::uint32_t mod = static_cast<std::uint32_t>(m_ostream.tellp()) % StreamType::template get_alignof<T>();
-			m_ostream.seekp(static_cast<std::uint32_t>(m_ostream.tellp()) + mod);
+			std::size_t mod = static_cast<std::size_t>(m_ostream.tellp()) % StreamType::template get_alignof<T>();
+			m_ostream.seekp(static_cast<std::size_t>(m_ostream.tellp()) + mod);
 		}
 	}
 
 	template<StreamDerivedFromStandard TStream>
-	void WriteStream<TStream>::write(const std::uint8_t* data, std::uint32_t size) {
+	void WriteStream<TStream>::write(const std::uint8_t* data, std::size_t size) {
 		m_ostream.write(reinterpret_cast<const char*>(data), size);
 	}
 
@@ -985,17 +1286,17 @@ namespace esr {
 	template<typename T>
 	void ReadStream<TStream>::advance_read_ptr() {
 		if constexpr (StreamType::template get_alignof<T>() > 1) {
-			std::uint32_t mod = reinterpret_cast<std::uintptr_t>(m_read_ptr) % TStream::template get_alignof<T>();
-			m_read_ptr += mod;
-			assert((m_read_ptr - Stream<TStream>::get_handle()) <= Stream<TStream>::get_size());
+			std::size_t mod = reinterpret_cast<std::uintptr_t>(get_read_ptr()) % TStream::template get_alignof<T>();
+			m_read_idx += mod;
+			assert(m_read_idx < m_stream.get_size());
 		}
 	}
 
 	template<typename TStream> 
-	void ReadStream<TStream>::read(std::uint8_t* data, std::uint32_t size) {
-		assert((m_read_ptr - Stream<TStream>::get_handle() + size) < Stream<TStream>::get_size());
-		std::memcpy(data, m_read_ptr, size);
-		m_read_ptr += size;
+	void ReadStream<TStream>::read(std::uint8_t* data, std::size_t size) {
+		assert(size < get_size() - m_read_idx);
+		std::memcpy(data, get_read_ptr(), size);
+		m_read_idx += size;
 	}
 
 	template<typename T>
@@ -1009,12 +1310,12 @@ namespace esr {
 	template<typename T>
 	void ReadStream<std::ios>::advance_read_ptr() {
 		if constexpr (StreamType::template get_alignof<T>() > 1) {
-			std::uint32_t mod = static_cast<std::uint32_t>(m_istream.tellg()) % StreamType::template get_alignof<T>();
-			m_istream.seekg(static_cast<std::uint32_t>(m_istream.tellg()) + mod);
+			std::size_t mod = static_cast<std::size_t>(m_istream.tellg()) % StreamType::template get_alignof<T>();
+			m_istream.seekg(static_cast<std::size_t>(m_istream.tellg()) + mod);
 		}
 	}
 
-	void ReadStream<std::ios>::read(std::uint8_t* data, std::uint32_t size) {
+	void ReadStream<std::ios>::read(std::uint8_t* data, std::size_t size) {
 		m_istream.read(reinterpret_cast<char*>(data), size);
 	}
 
@@ -1031,13 +1332,13 @@ namespace esr {
 	template<typename T>
 	void ReadStream<TStream>::advance_read_ptr() {
 		if constexpr (StreamType::template get_alignof<T>() > 1) {
-			std::uint32_t mod = static_cast<std::uint32_t>(m_istream.tellg()) % StreamType::template get_alignof<T>();
-			m_istream.seekg(static_cast<std::uint32_t>(m_istream.tellg()) + mod);
+			std::size_t mod = static_cast<std::size_t>(m_istream.tellg()) % StreamType::template get_alignof<T>();
+			m_istream.seekg(static_cast<std::size_t>(m_istream.tellg()) + mod);
 		}
 	}
 
 	template<StreamDerivedFromStandard TStream>
-	void ReadStream<TStream>::read(std::uint8_t* data, std::uint32_t size) {
+	void ReadStream<TStream>::read(std::uint8_t* data, std::size_t size) {
 		m_istream.read(reinterpret_cast<char*>(data), size);
 	}
 }

@@ -6,8 +6,9 @@
 #include <cstdio>
 #include <vector>
 #include <array>
+#include <optional>
 
-constexpr char test_file_names[][128] = {"first_test.dat", "second_test.dat", "third_test.dat", "fourth_test.dat", "fifth_test.dat", "sixth_test.dat", "seventh_test.dat", "eight_test.dat", "ninth_test.dat", "", "eleventh_test.dat", "twelth_test.dat"};
+constexpr char test_file_names[][128] = {"first_test.dat", "second_test.dat", "third_test.dat", "fourth_test.dat", "fifth_test.dat", "sixth_test.dat", "seventh_test.dat", "eight_test.dat", "ninth_test.dat", "", "eleventh_test.dat", "twelth_test.dat", "thirtieth_test.dat"};
 
 struct TestRecord {
 	ESR_BEGIN();
@@ -289,11 +290,11 @@ BOOST_AUTO_TEST_CASE(ninth_test) {
 }
 
 struct TestStream : public esr::Stream<TestStream> {
-	TestStream(std::uint8_t* data, std::uint32_t size) : Stream<TestStream>(data, size) {
+	TestStream(std::uint8_t* data, std::size_t size) : Stream<TestStream>(data, size) {
 	}
 
 	template<typename T> 
-	static consteval std::uint32_t get_alignof() {
+	static consteval std::size_t get_alignof() {
 		return 2;
 	}
 
@@ -303,7 +304,7 @@ struct TestStream : public esr::Stream<TestStream> {
 };
 
 template<>
-consteval std::uint32_t TestStream::get_alignof<char>() {
+consteval std::size_t TestStream::get_alignof<char>() {
 	return 4;
 }
 
@@ -311,10 +312,11 @@ BOOST_AUTO_TEST_CASE(tenth_test) {
 	TestRecordVec2RecordDerivedVec2 record{{{ 12, 97 }, {48, 7}}, {56, 79}, 11, true, '0'};
 	TestRecordVec2RecordDerivedVec2 in_record{};
 	{
-		std::uint8_t buffer[512];
-		esr::WriteStream<TestStream> wstream(buffer, sizeof(buffer));
+		std::uint8_t data[512];
+		TestStream stream(data, sizeof(data));
+		esr::WriteStream<TestStream> wstream(stream);
 		wstream << record;
-		esr::ReadStream<TestStream> rstream(buffer, sizeof(buffer));
+		esr::ReadStream<TestStream> rstream(stream);
 		rstream >> in_record;
 	}
 
@@ -362,15 +364,16 @@ ESR_REGISTER_PROC_S("", std::vector<T>, v, stream,
 BOOST_AUTO_TEST_CASE(eleventh_test) {
 	const std::vector<int> vec = {2, 4, 5, 10, 24};
 	std::vector<int> in_vec;
-	std::uint8_t buffer[512];
+	std::uint8_t data[512];
+	TestStream stream(data, sizeof(data));
 	
 	{
-		esr::WriteStream<TestStream> stream(buffer, sizeof(buffer));
-		stream << vec;
+		esr::WriteStream<TestStream> write_stream(stream);
+		write_stream << vec;
 	}
 	{
-		esr::ReadStream<TestStream> stream(buffer, sizeof(buffer));
-		stream >> in_vec;
+		esr::ReadStream<TestStream> write_stream(stream);
+		write_stream >> in_vec;
 	}
 
 	BOOST_TEST(vec.size() == in_vec.size());
@@ -404,6 +407,149 @@ BOOST_AUTO_TEST_CASE(twelth_test) {
 		BOOST_TEST(arr[i].a == in_arr[i].a);
 		BOOST_TEST(arr[i].b == in_arr[i].b);
 		BOOST_TEST(arr[i].c == in_arr[i].c);
+	}
+}
+
+struct MyStruct2 {
+
+	ESR_BEGIN();
+	ESR_FIELD(ESR_PACK(std::array<int, 7>), myarray);
+	ESR_FIELD(ESR_PACK(std::array<int, 27>), myarray1);
+	ESR_FIELD(ESR_PACK(std::array<int, 34>), myarray2);
+	ESR_FIELD(ESR_PACK(std::array<int, 49>), myarray3);
+	ESR_FIELD(ESR_PACK(std::array<int, 56>), myarray4);
+	ESR_END();
+};
+
+class MyCustomStream : public esr::Stream<MyCustomStream>{
+public:
+
+	MyCustomStream(std::vector<int>& vector) 
+		: m_vector(vector) 
+		, esr::Stream<MyCustomStream>((uint8_t*)vector.data(), vector.size() * sizeof(int)){
+	}
+	
+	static consteval std::string_view get_channel() {
+		return "";
+	}
+
+	static consteval bool should_trigger_write_too_large() {
+		return true;
+	}
+
+	static consteval std::optional<std::size_t> get_post_write_stride() {
+		return sizeof(int);
+	}
+
+	esr::WriteStreamData on_write_too_large(std::size_t required_size_delta) {
+		m_vector.resize(100+ m_vector.size() + (std::ceil(static_cast<float>(required_size_delta) / sizeof(int))));
+		std::cout << "Resize: " << m_vector.size() * sizeof(int) << " RequiredSizeDelta: " << required_size_delta << "\n";
+		MyStruct2* record = (MyStruct2*)m_vector.data();
+		std::cout << "myarray: [ ";
+		for (int i = 0; i < record->myarray.size(); i++) {
+			std::cout << record->myarray[i] << " ";
+		}
+
+		std::cout << " ]\nmyarray1: [ ";
+		for (int i = 0; i < record->myarray1.size(); i++) {
+			std::cout << record->myarray1[i] << " ";
+		}
+
+		std::cout << " ]\nmyarray2: [ ";
+		for (int i = 0; i < record->myarray2.size(); i++) {
+			std::cout << record->myarray2[i] << " ";
+		}
+
+		std::cout << " ]\nmyarray3: [ ";
+		for (int i = 0; i < record->myarray3.size(); i++) {
+			std::cout << record->myarray3[i] << " ";
+		}
+
+		std::cout << " ]\nmyarray4: [ ";
+		for (int i = 0; i < record->myarray4.size(); i++) {
+			std::cout << record->myarray4[i] << " ";
+		}
+		std::cout << " ]\n";
+
+		return {m_vector.size() * sizeof(int), (std::uint8_t*)m_vector.data(), {}};
+	}
+
+	void on_post_write(std::size_t written_size) {
+		// std::size_t plus = written_size / sizeof(int);
+		// m_vector.resize(m_vector.size() + plus);
+		//
+		MyStruct2* record = (MyStruct2*)get_data();
+
+		std::cout << "Written Size: " << written_size;
+		std::cout << "\nmyarray: [ ";
+		for (int i = 0; i < record->myarray.size(); i++) {
+			std::cout << record->myarray[i] << " ";
+		}
+
+		std::cout << " ]\nmyarray1: [ ";
+		for (int i = 0; i < record->myarray1.size(); i++) {
+			std::cout << record->myarray1[i] << " ";
+		}
+
+		std::cout << " ]\nmyarray2: [ ";
+		for (int i = 0; i < record->myarray2.size(); i++) {
+			std::cout << record->myarray2[i] << " ";
+		}
+
+		std::cout << " ]\nmyarray3: [ ";
+		for (int i = 0; i < record->myarray3.size(); i++) {
+			std::cout << record->myarray3[i] << " ";
+		}
+
+		std::cout << " ]\nmyarray4: [ ";
+		for (int i = 0; i < record->myarray4.size(); i++) {
+			std::cout << record->myarray4[i] << " ";
+		}
+		std::cout << " ]\n";
+
+	}
+
+
+private:
+	std::vector<int>& m_vector;
+};
+
+BOOST_AUTO_TEST_CASE(thirtieth_test) {
+
+	std::vector<int> data;
+	data.resize(2);
+	MyCustomStream stream(data);
+	MyStruct2 record{{25, 98, 40, 70, 22, 91, -232}, {90}, {82}, {321}, {392817}};
+	MyStruct2 in_record{{}};
+
+	{
+		esr::WriteStream<MyCustomStream> write_stream(stream);
+		write_stream << record;	
+	}
+
+	{
+		esr::ReadStream<MyCustomStream> read_stream(stream);
+		read_stream >> in_record;
+	}
+
+	for (int i = 0; i < record.myarray.size(); i++) {
+		BOOST_TEST(record.myarray[i] == in_record.myarray[i]);
+	}
+
+	for (int i = 0; i < record.myarray1.size(); i++) {
+		BOOST_TEST(record.myarray1[i] == in_record.myarray1[i]);
+	}
+
+	for (int i = 0; i < record.myarray2.size(); i++) {
+		BOOST_TEST(record.myarray2[i] == in_record.myarray2[i]);
+	}
+
+	for (int i = 0; i < record.myarray3.size(); i++) {
+		BOOST_TEST(record.myarray3[i] == in_record.myarray3[i]);
+	}
+
+	for (int i = 0; i < record.myarray4.size(); i++) {
+		BOOST_TEST(record.myarray4[i] == in_record.myarray4[i]);
 	}
 }
 
