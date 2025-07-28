@@ -1034,7 +1034,6 @@ namespace esr {
 				if (write_offset_since_post_write >= post_write_stride) {
 					stream.on_post_write(write_offset_since_post_write);
 					stream.set_write_offset_since_post_write(0);
-					std::cout << "Buffer: " << (void*)stream.get_data() << " Write ptr: " << (void*)stream.get_write_ptr() << " Write Idx: " << stream.get_write_idx() << "\n\n";
 				}
 
 			}
