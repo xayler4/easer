@@ -1009,7 +1009,7 @@ namespace esr {
 		template<typename TStream>
 		static void handle_write_too_large(WriteStream<TStream>& stream, std::uint8_t* previous_write_ptr, std::size_t record_size) {
 			if constexpr (WriteStream<TStream>::StreamType::should_trigger_write_too_large()) {
-				if (stream.get_size() < (stream.get_write_ptr() - stream.get_data() + record_size)) {
+				if (stream.get_write_idx() + record_size > stream.get_size()) {
 					std::size_t delta = stream.get_write_ptr() - previous_write_ptr + record_size;
 					WriteStreamData result = stream.on_write_too_large(delta);
 					stream.set_size(result.size);
@@ -1224,7 +1224,7 @@ namespace esr {
 
 	template<typename TStream> 
 	void WriteStream<TStream>::write(const std::uint8_t* data, std::size_t size) {
-		assert(m_write_idx + size < m_stream.get_size());
+		assert(m_write_idx + size <= m_stream.get_size());
 		std::memcpy(get_write_ptr(), data, size);
 		m_write_idx += size;
 	}
@@ -1293,7 +1293,7 @@ namespace esr {
 
 	template<typename TStream> 
 	void ReadStream<TStream>::read(std::uint8_t* data, std::size_t size) {
-		assert(size < get_size() - m_read_idx);
+		assert(m_read_idx + size <= get_size());
 		std::memcpy(data, get_read_ptr(), size);
 		m_read_idx += size;
 	}
