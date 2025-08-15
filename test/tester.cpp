@@ -413,11 +413,11 @@ BOOST_AUTO_TEST_CASE(twelth_test) {
 struct MyStruct2 {
 
 	ESR_BEGIN();
-	ESR_FIELD(ESR_PACK(std::array<int, 7>), myarray);
-	ESR_FIELD(ESR_PACK(std::array<int, 27>), myarray1);
-	ESR_FIELD(ESR_PACK(std::array<int, 34>), myarray2);
-	ESR_FIELD(ESR_PACK(std::array<int, 49>), myarray3);
-	ESR_FIELD(ESR_PACK(std::array<int, 56>), myarray4);
+	ESR_FIELD(ESR_PACK(std::array<int, 7>), myarray, "wow");
+	ESR_FIELD(ESR_PACK(std::array<int, 27>), myarray1, "wow");
+	ESR_FIELD(ESR_PACK(std::array<int, 34>), myarray2, "wow");
+	ESR_FIELD(ESR_PACK(std::array<int, 49>), myarray3, "wow");
+	ESR_FIELD(ESR_PACK(std::array<int, 56>), myarray4, "wow");
 	ESR_END();
 };
 
@@ -430,7 +430,7 @@ public:
 	}
 	
 	static consteval std::string_view get_channel() {
-		return "";
+		return "wow";
 	}
 
 	static consteval bool should_trigger_write_too_large() {

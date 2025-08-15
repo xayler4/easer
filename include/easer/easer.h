@@ -301,7 +301,7 @@
 #define ESR_FIELD(field_type, field_name, ...) \
 	template<typename TChannel> \
 	static consteval bool ESR_API(is_field_valid)(TChannel channel, const ::esr::Manager::Field<__COUNTER__>) { \
-		static_assert(::esr::Manager::has_register<field_type>() || ::esr::Manager::is_registered<field_type, TChannel>() || std::is_array_v<field_type> || ::esr::Manager::is_iterable<field_type>() || std::is_fundamental_v<field_type>, "T is not serializable"); \
+		static_assert(::esr::Manager::has_register<field_type>() || ::esr::Manager::is_registered<field_type, TChannel>() || std::is_array_v<field_type> || ::esr::Manager::is_iterable<field_type>() || std::is_fundamental_v<field_type> || std::is_same_v<std::remove_cvref_t<field_type>, char*>, "T is not serializable"); \
 		return ::esr::Manager::is_in_set<TChannel, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(ESR_MAKE_CHANNELS(__VA_ARGS__))>(); \
 	} \
 	template<typename TStream> \
@@ -320,7 +320,7 @@
 #define ESR_SPEC_FIELD(declaration_specifier, field_type, field_name, ...) \
 	template<typename TChannel> \
 	static consteval bool ESR_API(is_field_valid)(TChannel channel, const ::esr::Manager::Field<__COUNTER__>) { \
-		static_assert(::esr::Manager::has_register<field_type>() || ::esr::Manager::is_registered<field_type, TChannel>() || std::is_array_v<field_type> || ::esr::Manager::is_iterable<field_type>() || std::is_fundamental_v<field_type>, "T is not serializable"); \
+		static_assert(::esr::Manager::has_register<field_type>() || ::esr::Manager::is_registered<field_type, TChannel>() || std::is_array_v<field_type> || ::esr::Manager::is_iterable<field_type>() || std::is_fundamental_v<field_type> || std::is_same_v<std::remove_cvref_t<field_type>, char*>, "T is not serializable"); \
 		return ::esr::Manager::is_in_set<TChannel, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(ESR_MAKE_CHANNELS(__VA_ARGS__))>(); \
 	} \
 	template<typename TStream> \
@@ -787,7 +787,7 @@ namespace esr {
 	public:
 		template<typename T, typename TStream>
 		inline static void write(const T& record, WriteStream<TStream>& stream) {
-			static_assert(has_register<T>() || is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>() || std::is_array_v<T> || ::esr::Manager::is_iterable<T>() || std::is_fundamental_v<T>, "T is not serializable");
+			static_assert(has_register<T>() || is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>() || std::is_array_v<T> || ::esr::Manager::is_iterable<T>() || std::is_fundamental_v<T> || std::is_same_v<std::remove_cvref_t<T>, char*>, "T is not serializable");
 			if constexpr(is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>()) {
 				if constexpr (!::ESR_API(Registry)<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>::is_none()) {
 					::ESR_API(Registry)<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>::write(record, stream);
@@ -835,6 +835,26 @@ namespace esr {
 						write(v, stream);
 					}
 				}
+			}
+			else if constexpr(std::is_same_v<std::remove_cv_t<T>, char*>) {
+				std::size_t i = 0;
+				if (record != nullptr) {
+					while (record[i] != '\n') {
+						++i;	
+					}
+
+				}
+				std::uint8_t* previous_write_ptr = nullptr;
+				std::size_t record_size = i * sizeof(char);
+
+				if constexpr (WriteStream<TStream>::StreamType::should_trigger_write_too_large() || WriteStream<TStream>::StreamType::get_post_write_stride().has_value()) {
+					previous_write_ptr = stream.get_write_ptr();
+				}
+
+				handle_write_too_large<TStream>(stream, previous_write_ptr, record_size);
+				previous_write_ptr = stream.get_write_ptr();
+				stream.write((std::uint8_t*)&(*record.begin()), record_size);
+				handle_post_write<TStream>(stream, previous_write_ptr, record_size);
 			}
 			else {
 				std::uint8_t* previous_write_ptr = nullptr;
@@ -1206,7 +1226,7 @@ namespace esr {
 	template<typename TStream> 
 	template<typename T>
 	WriteStream<TStream>& WriteStream<TStream>::operator << (const T& value) {
-		static_assert(Manager::has_register<T>() || Manager::is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>() || std::is_array_v<T> || ::esr::Manager::is_iterable<T>() || std::is_fundamental_v<T>, "T is not serializable");
+		static_assert(Manager::has_register<T>() || Manager::is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>() || std::is_array_v<T> || ::esr::Manager::is_iterable<T>() || std::is_fundamental_v<T> || std::is_same_v<std::remove_cvref_t<T>, char*>, "T is not serializable");
 		Manager::write(value, *this);
 
 		return *this;
@@ -1231,7 +1251,7 @@ namespace esr {
 
 	template<typename T>
 	WriteStream<std::ios>& WriteStream<std::ios>::operator << (const T& value) {
-		static_assert(Manager::has_register<T>() || Manager::is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<std::ios>::StreamType::get_channel())>() || std::is_array_v<T> || ::esr::Manager::is_iterable<T>() || std::is_fundamental_v<T>, "T is not serializable");
+		static_assert(Manager::has_register<T>() || Manager::is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<std::ios>::StreamType::get_channel())>() || std::is_array_v<T> || ::esr::Manager::is_iterable<T>() || std::is_fundamental_v<T> || std::is_same_v<std::remove_cvref_t<T>, char*>, "T is not serializable");
 		Manager::write(value, *this);
 
 		return *this;
@@ -1252,7 +1272,7 @@ namespace esr {
 	template<StreamDerivedFromStandard TStream>
 	template<typename T>
 	WriteStream<TStream>& WriteStream<TStream>::operator << (const T& value) {
-		static_assert(Manager::has_register<T>() || Manager::is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>() || std::is_array_v<T> || ::esr::Manager::is_iterable<T>() || std::is_fundamental_v<T>, "T is not serializable");
+		static_assert(Manager::has_register<T>() || Manager::is_registered<T, ESR_CHANNEL_NAME_VARIADIC_TO_CHANNEL_LAMBDA_TYPE_VARIADIC(WriteStream<TStream>::StreamType::get_channel())>() || std::is_array_v<T> || ::esr::Manager::is_iterable<T>() || std::is_fundamental_v<T> || std::is_same_v<std::remove_cvref_t<T>, char*>, "T is not serializable");
 		Manager::write(value, *this);
 
 		return *this;
